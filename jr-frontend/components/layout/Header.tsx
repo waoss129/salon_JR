@@ -1,45 +1,67 @@
 // src/components/layout/Header.tsx
+
+"use client";
 import { createClient } from "@/lib/supabase/server";
 import UserDropdown from "./UserDropdown";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
-export default async function Header() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function Header({ user }: { user?: any }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleServicesClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    //neu dang o trang chu thi cuon ngay
+    if (pathname === "/") {
+      const element = document.getElementById("services-section");
+      element?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      //neu o trang khac, ve trang chu va them hash vao URL
+      router.push("/#services-section");
+    }
+  };
+
+  const handleReturnHome = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // 1. Cuộn lên đầu trang một cách mượt mà
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 2. Chuyển hướng về trang chủ
+    router.push("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-between p-6 shadow-sm border-b border-gray-100">
-      {/* Bao bọc bằng Link thay vì dùng onClick */}
-      <Link
-        href="/"
-        className="flex items-center cursor-pointer group outline-none"
+      {/* Cả Logo và Slogan đều gọi hàm handleReturnHome */}
+      <div
+        onClick={handleReturnHome}
+        className="flex items-center cursor-pointer group outline-none flex-shrink-0"
       >
-        {/* Logo Gradient với hiệu ứng chuyển màu */}
-        <span className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-300 via-purple-300 to-blue-300 bg-clip-text text-transparent italic transition-all group-hover:opacity-80">
+        <span className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-300 via-purple-300 to-blue-300 bg-clip-text text-transparent italic transition-all group-hover:opacity-80 pr-2">
           JoyRide
         </span>
-
-        {/* Đường kẻ dọc tinh tế */}
         <span className="mx-3 text-gray-300 font-light">|</span>
-
-        {/* Slogan BEAUTY STUDIO */}
         <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-gray-400 mt-1">
           Beauty Studio
         </span>
-      </Link>
+      </div>
 
       <nav className="flex gap-8">
-        <Link href="/" className="hover:text-pink-400 transition-colors">
+        {/* Chữ "Trang chủ" cũng gọi hàm handleReturnHome */}
+        <button
+          onClick={handleReturnHome}
+          className="hover:text-pink-400 transition-colors font-medium cursor-pointer"
+        >
           Trang chủ
-        </Link>
-        <Link
-          href="/services"
-          className="hover:text-pink-400 transition-colors"
+        </button>
+        {/* Nút Dịch vụ đã sửa thành button để gọi hàm */}
+        <button
+          onClick={handleServicesClick}
+          className="hover:text-pink-400 transition-colors font-medium cursor-pointer"
         >
           Dịch vụ
-        </Link>
+        </button>
         <Link href="/contact" className="hover:text-pink-400 transition-colors">
           Liên hệ
         </Link>

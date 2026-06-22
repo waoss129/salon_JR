@@ -27,3 +27,21 @@ body {
     --color-foreground: #ededed;
   }
 }
+@keyframes color-cycle {
+  0% {
+    background-color: #fbbfdc;
+  } /* Pink */
+  33% {
+    background-color: #99ddf0;
+  } /* Blue */
+  66% {
+    background-color: #e1fad4;
+  } /* Mint */
+  100% {
+    background-color: #fbbfdc;
+  } /* Quay lại Pink */
+}
+
+.animate-color-cycle {
+  animation: color-cycle 6s infinite ease-in-out;
+}
