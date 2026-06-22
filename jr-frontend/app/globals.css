@@ -1,0 +1,29 @@
+/* 1. Import Font chuẩn tiếng Việt */
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@700;800&display=swap");
+
+/* 2. Import Tailwind */
+@import "tailwindcss";
+
+/* 3. Cấu hình Theme */
+@theme {
+  --font-sans: "Be Vietnam Pro", sans-serif;
+
+  /* Khai báo màu sắc cơ bản */
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+}
+
+/* 4. Reset cơ bản cho body */
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+/* 5. Hỗ trợ Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0a0a0a;
+    --color-foreground: #ededed;
+  }
+}
