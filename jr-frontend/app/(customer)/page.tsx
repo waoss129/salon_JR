@@ -1,12 +1,23 @@
 "use client";
-
-import { useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GRID_DISPLAY_CONFIG } from "@/components/home/constants";
 import ServiceCard from "@/components/home/ServiceCard";
 
 export default function JoyRideHomePage() {
+  const supabase = createClient();
+  const [session, setSession] = useState<any>(null); //state de luu session
   const router = useRouter();
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  //lay session o phia client
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+  }, []);
 
   // 1. Logic tự động cuộn khi trang được tải (dành cho trường hợp từ trang khác quay về)
   useEffect(() => {

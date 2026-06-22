@@ -1,15 +1,36 @@
 // src/components/layout/Header.tsx
 
 "use client";
-import { createClient } from "@/lib/supabase/server";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import UserDropdown from "./UserDropdown";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-export default function Header({ user }: { user?: any }) {
+export default function Header() {
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const supabase = createClient();
 
+  //them useEffect de lay user khi trang load
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    checkUser();
+
+    //lang nghe thay doi trang thai dang nhap / dang xuat
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
   const handleServicesClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
