@@ -32,6 +32,7 @@ export default function RegisterPage() {
         {
           user_id: data.user.id, // ID từ hệ thống Auth
           fullname: fullName, // State bạn tạo từ ô input Họ và tên
+          //email: email,
         },
       ]);
 

@@ -13,6 +13,15 @@ export default function Header() {
   const pathname = usePathname();
   const supabase = createClient();
 
+  const handleLogout = async () => {
+    //goi ham dang xuat
+    await supabase.auth.signOut();
+    //chuyen huong ve trang chu
+    router.push("/");
+    //lam moi trang de cap nhat trang thai
+    router.refresh();
+  };
+
   //them useEffect de lay user khi trang load
   useEffect(() => {
     const checkUser = async () => {
