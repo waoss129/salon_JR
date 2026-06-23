@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
-  const router = useRouter(); // khoi tao router
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     fullname: "",
@@ -17,14 +17,11 @@ export default function ProfilePage() {
     dob: "",
     avatar: "",
   });
-
-  // previewUrl: Biến tạm chỉ dùng để hiển thị trên UI.
-  // Nó sẽ bị reset mỗi khi load lại trang.
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    async function getProfile() {
+    async function loadData() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -32,7 +29,6 @@ export default function ProfilePage() {
         router.push("/login");
         return;
       }
-
       const { data } = await supabase
         .from("customers")
         .select("*")
@@ -44,188 +40,140 @@ export default function ProfilePage() {
       }
       setLoading(false);
     }
-    getProfile();
-  }, [supabase, router]);
+    loadData();
+  }, []);
 
-  // CHỈ THAY ĐỔI HÌNH ẢNH TRÊN UI, KHÔNG UPLOAD LÊN SERVER
-  const handleFileChange = (e) => {
+  // Xử lý chọn file: CHỈ tạo đường dẫn tạm
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      const tempUrl = URL.createObjectURL(file);
-      setPreviewUrl(tempUrl);
-      console.log("Ảnh tạm đã tạo:", tempUrl); // Kiểm tra log xem nó có hiện không
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
-  const handleSave = async () => {
-    setLoading(true); //bat trang thai dang xu ly
 
+  const handleSave = async () => {
+    setLoading(true);
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    let finalAvatarUrl = profile.avatar; //mac dinh lay anh cu
+    let avatarUrl = profile.avatar;
 
-    //neu nguoi dung co chon file moi (selectFile)
-    // CHỈ KHI BẤM LƯU MỚI BẮT ĐẦU UPLOAD
+    // Nếu có file mới, upload lên Supabase
     if (selectedFile) {
-      const fileExt = selectedFile.name.split(".").pop();
-      const fileName = `${user.id}.${fileExt}`;
-
-      //upload file that len storage
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, selectedFile, { upsert: true });
-
-      if (uploadError) {
-        alert("Lỗi upload: " + uploadError.message);
-        return;
-      }
-
-      //lay duong dan cong khai
+      const fileName = `${user.id}_${Date.now()}.png`; // Đặt tên file duy nhất
+      await supabase.storage.from("avatars").upload(fileName, selectedFile);
       const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-      finalAvatarUrl = data.publicUrl;
+      avatarUrl = data.publicUrl;
     }
 
-    // Cập nhật Database
+    // Cập nhật Database (gồm cả ảnh và thông tin chữ)
     const { error } = await supabase
       .from("customers")
-      .update({ ...profile, avatar: finalAvatarUrl })
+      .update({
+        ...profile,
+        avatar: avatarUrl,
+      })
       .eq("user_id", user.id);
 
     if (error) {
-      alert("Lỗi lưu: " + error.message);
+      alert("Lỗi: " + error.message);
     } else {
-      //thanh cong cap nhat lai profile
-      setProfile({ ...profile, avatar: finalAvatarUrl });
-      setSelectedFile(null); // Reset file sau khi lưu thành công
-      setPreviewUrl(finalAvatarUrl);
+      setProfile({ ...profile, avatar: avatarUrl });
+      setSelectedFile(null);
       alert("Đã lưu thành công!");
     }
     setLoading(false);
   };
 
-  const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(fileName, file, { upsert: true });
-    if (uploadError) {
-      alert("Lỗi upload");
-      return;
-    }
-
-    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-
-    // Cập nhật vào previewUrl để hiển thị B ngay lập tức
-    setPreviewUrl(data.publicUrl);
-  };
-
-  if (loading) return <div>Đang tải hồ sơ...</div>;
+  if (loading) return <div>Đang tải...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-stone-100">
+      <h2 className="text-2xl font-bold text-stone-800 mb-6">
+        Thông tin cá nhân
+      </h2>
+
+      {/* Phần Ảnh đại diện */}
       <div className="flex items-center gap-6 mb-8">
-        <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center bg-gray-100">
+        <div className="relative group">
           <img
-            key={previewUrl} // Thêm key này vào để React bắt buộc phải render lại thẻ img khi previewUrl thay đổi
             src={previewUrl || profile.avatar || "/default-avatar.png"}
+            className="w-24 h-24 rounded-full object-cover border-4 border-stone-100 shadow-md"
             alt="Avatar"
-            className="w-24 h-24 rounded-full object-cover"
           />
-        </div>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="text-sm font-bold text-mint-600 hover:text-mint-700"
-        >
-          Thay đổi ảnh đại diện
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          onChange={handleFileChange} // Dùng hàm handleFileChange mới
-          accept="image/*"
-        />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
-            Họ và tên
-          </label>
-          <input
-            value={profile.fullname || ""}
-            onChange={(e) =>
-              setProfile({ ...profile, fullname: e.target.value })
-            }
-            className="w-full p-3 border rounded-xl border-mint-200 focus:ring-2 focus:ring-mint-400 outline-none"
-          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 rounded-full transition-opacity text-xs font-semibold"
+          >
+            Thay đổi
+          </button>
         </div>
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
-            Giới tính
-          </label>
+          <h3 className="font-semibold text-stone-800">Ảnh đại diện</h3>
+
           <input
-            value={profile.gender || ""}
-            onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-            className="w-full p-3 border rounded-xl border-mint-200 focus:ring-2 focus:ring-mint-400 outline-none"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
-            Ngày sinh
-          </label>
-          <input
-            type="date" // Thay type="text" mặc định thành "date"
-            value={profile.dob || ""}
-            onChange={(e) => setProfile({ ...profile, dob: e.target.value })}
-            className="w-full p-3 border rounded-xl border-mint-200 focus:ring-2 focus:ring-mint-400 outline-none"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
-            Số điện thoại
-          </label>
-          <input
-            value={profile.phone || ""}
-            onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-            className="w-full p-3 border rounded-xl border-mint-200 focus:ring-2 focus:ring-mint-400 outline-none"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
-            Địa chỉ
-          </label>
-          <input
-            value={profile.address || ""}
-            onChange={(e) =>
-              setProfile({ ...profile, address: e.target.value })
-            }
-            className="w-full p-3 border rounded-xl border-mint-200 focus:ring-2 focus:ring-mint-400 outline-none"
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleFileChange}
+            accept="image/*"
           />
         </div>
       </div>
 
-      <div className="flex gap-4 pt-4">
+      {/* Grid Input thông tin */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[
+          { label: "Họ và tên", key: "fullname", placeholder: "Nhập họ tên" },
+          { label: "Số điện thoại", key: "phone", placeholder: "Nhập SĐT" },
+          { label: "Giới tính", key: "gender", type: "select" }, // Thêm thuộc tính type
+          { label: "Địa chỉ", key: "address", placeholder: "Nhập địa chỉ" },
+        ].map((field) => (
+          <div key={field.key} className="space-y-1">
+            <label className="text-xs font-bold text-stone-500 uppercase">
+              {field.label}
+            </label>
+
+            {field.type === "select" ? (
+              // Hiển thị SELECT cho Giới tính
+              <select
+                value={profile.gender ?? ""}
+                onChange={(e) =>
+                  setProfile({ ...profile, gender: parseInt(e.target.value) })
+                }
+                className="w-full p-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
+              >
+                <option value="">Chọn giới tính</option>
+                <option value="0">Nam</option>
+                <option value="1">Nữ</option>
+                <option value="2">Khác</option>
+              </select>
+            ) : (
+              // Hiển thị INPUT cho các trường còn lại
+              <input
+                value={(profile as any)[field.key] ?? ""}
+                onChange={(e) =>
+                  setProfile({ ...profile, [field.key]: e.target.value })
+                }
+                placeholder={field.placeholder}
+                className="w-full p-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Nút lưu */}
+      <div className="mt-8 flex justify-end">
         <button
           onClick={handleSave}
-          className="bg-emerald-400 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md"
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
         >
-          Lưu thay đổi
-        </button>
-        <button className="text-stone-500 font-bold hover:text-stone-700 transition-colors">
-          Hủy
+          {loading ? "Đang lưu..." : "Lưu thay đổi"}
         </button>
       </div>
     </div>
