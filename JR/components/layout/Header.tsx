@@ -24,6 +24,7 @@ export default function Header() {
 
   //them useEffect de lay user khi trang load
   useEffect(() => {
+    if (!supabase) return; // tat supabase cloud
     const checkUser = async () => {
       const {
         data: { session },

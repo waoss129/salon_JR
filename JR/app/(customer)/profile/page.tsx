@@ -140,10 +140,18 @@ export default function ProfilePage() {
             {field.type === "select" ? (
               // Hiển thị SELECT cho Giới tính
               <select
-                value={profile.gender ?? ""}
-                onChange={(e) =>
-                  setProfile({ ...profile, gender: parseInt(e.target.value) })
-                }
+                //ep kieu ve chuoi an toan: neu null/undefined thi tra ve ""
+                value={profile.gender?.toString() ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  //neu chon option rong, luu la null (hoac string rong tuy db)
+                  //neu co gia tri thi moi parseInt de tranh NaN
+
+                  setProfile({
+                    ...profile,
+                    gender: val === "" ? null : parseInt(val),
+                  });
+                }}
                 className="w-full p-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
               >
                 <option value="">Chọn giới tính</option>

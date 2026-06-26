@@ -33,7 +33,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="mt-2 md:mt-0 px-4 py-2 bg-pink-100 text-pink-600 font-bold rounded-lg shadow-inner text-sm flex items-center gap-2">
-          📅 Hôm nay: {today}
+          Hôm nay: {today}
         </div>
       </div>
 
@@ -47,9 +47,9 @@ export default function DashboardPage() {
             </p>
             <p className="text-4xl font-black text-slate-900 mt-1">12</p>
           </div>
-          <div className="p-3.5 bg-blue-50 rounded-xl text-3xl shadow-sm">
+          {/* <div className="p-3.5 bg-blue-50 rounded-xl text-3xl shadow-sm">
             📅
-          </div>
+          </div> */}
         </div>
 
         {/* Thẻ 2: Khách hàng */}
@@ -60,9 +60,9 @@ export default function DashboardPage() {
             </p>
             <p className="text-4xl font-black text-slate-900 mt-1">4</p>
           </div>
-          <div className="p-3.5 bg-amber-50 rounded-xl text-3xl shadow-sm">
+          {/* <div className="p-3.5 bg-amber-50 rounded-xl text-3xl shadow-sm">
             👩‍🦰
-          </div>
+          </div> */}
         </div>
 
         {/* Thẻ 3: Doanh thu ước tính */}
@@ -73,9 +73,9 @@ export default function DashboardPage() {
             </p>
             <p className="text-4xl font-black text-slate-900 mt-1">3.5M</p>
           </div>
-          <div className="p-3.5 bg-emerald-50 rounded-xl text-3xl shadow-sm">
+          {/* <div className="p-3.5 bg-emerald-50 rounded-xl text-3xl shadow-sm">
             💵
-          </div>
+          </div> */}
         </div>
       </div>
 

@@ -14,6 +14,7 @@ export default function JoyRideHomePage() {
 
   //lay session o phia client
   useEffect(() => {
+    if (!supabase) return; //tat supabase cloud
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });

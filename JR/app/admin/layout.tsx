@@ -56,7 +56,7 @@ export default function AdminLayout({
               href="/admin/dashboard"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              📊 Tổng Quan (Dashboard)
+              Tổng Quan (Dashboard)
             </Link>
 
             {/* Tài Khoản */}
@@ -64,7 +64,7 @@ export default function AdminLayout({
               href="/admin/accounts"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              👤 Tài Khoản
+              Tài Khoản
             </Link>
 
             {/* Dropdown Dịch Vụ */}
@@ -73,7 +73,7 @@ export default function AdminLayout({
                 onClick={() => setOpenDichVu(!openDichVu)}
                 className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
               >
-                <span>💅 Dịch Vụ</span>
+                <span>Dịch Vụ</span>
                 <span className="text-xs transition-transform duration-200">
                   {openDichVu ? "▲" : "▼"}
                 </span>
@@ -84,19 +84,19 @@ export default function AdminLayout({
                     href="/admin/services/hair"
                     className="block p-2 text-sm hover:text-pink-600"
                   >
-                    💇 Hair
+                    Hair
                   </Link>
                   <Link
                     href="/admin/services/nail"
                     className="block p-2 text-sm hover:text-blue-600"
                   >
-                    💅 Nail
+                    Nail
                   </Link>
                   <Link
                     href="/admin/services/spa"
                     className="block p-2 text-sm hover:text-green-600"
                   >
-                    💆 Spa
+                    Spa
                   </Link>
                 </div>
               )}
@@ -108,7 +108,7 @@ export default function AdminLayout({
                 onClick={() => setOpenNhanVien(!openNhanVien)}
                 className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
               >
-                <span>👥 Nhân Viên</span>
+                <span>Nhân Viên</span>
                 <span className="text-xs transition-transform duration-200">
                   {openNhanVien ? "▲" : "▼"}
                 </span>
@@ -119,13 +119,13 @@ export default function AdminLayout({
                     href="/admin/staff/manager"
                     className="block p-2 text-sm hover:text-violet-500"
                   >
-                    💼 Quản Lý
+                    Quản Lý
                   </Link>
                   <Link
                     href="/admin/staff/receptionist"
                     className="block p-2 text-sm hover:text-violet-500"
                   >
-                    🛎️ Lễ Tân
+                    Lễ Tân
                   </Link>
                 </div>
               )}
@@ -136,7 +136,7 @@ export default function AdminLayout({
               href="/admin/beauticians"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              ✂️ Chuyên Viên
+              Chuyên Viên
             </Link>
 
             {/* Khách Hàng */}
@@ -144,7 +144,7 @@ export default function AdminLayout({
               href="/admin/customers"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              ❤️ Khách Hàng
+              Khách Hàng
             </Link>
 
             {/* Lịch Làm Việc */}
@@ -152,7 +152,7 @@ export default function AdminLayout({
               href="/admin/schedules"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              ⏱️ Lịch Làm Việc
+              Lịch Làm Việc
             </Link>
 
             {/* Lịch Hẹn */}
@@ -160,7 +160,7 @@ export default function AdminLayout({
               href="/admin/appointments"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              📅 Lịch Hẹn
+              Lịch Hẹn
             </Link>
 
             {/* Hóa Đơn */}
@@ -168,7 +168,7 @@ export default function AdminLayout({
               href="/admin/bills"
               className="block p-2.5 rounded hover:bg-purple-200 transition"
             >
-              💵 Hóa Đơn
+              Hóa Đơn
             </Link>
           </nav>
         </div>
@@ -178,7 +178,7 @@ export default function AdminLayout({
           onClick={handleLogout}
           className="w-full bg-purple-400 hover:bg-purple-600 text-white p-2.5 rounded transition font-bold mt-auto shadow-sm flex items-center justify-center gap-2"
         >
-          🚪 Đăng xuất
+          Đăng xuất
         </button>
       </aside>
 

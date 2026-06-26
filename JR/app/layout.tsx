@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-import "./globals.css"; // Đảm bảo bạn có file này để import Tailwind
+import "./globals.css"; // file này để import Tailwind
 
 export default function RootLayout({
   children,
