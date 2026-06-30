@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import UserDropdown from "./UserDropdown";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { FaSearch, FaUser } from "react-icons/fa";
 
 export default function Header() {
   const [user, setUser] = useState<any>(null);
@@ -63,13 +64,13 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-between p-6 shadow-sm border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 py-4 shadow-sm border-b border-gray-100">
       {/* Cả Logo và Slogan đều gọi hàm handleReturnHome */}
       <div
         onClick={handleReturnHome}
         className="flex items-center cursor-pointer group outline-none flex-shrink-0"
       >
-        <span className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-300 via-purple-300 to-blue-300 bg-clip-text text-transparent italic transition-all group-hover:opacity-80 pr-2">
+        <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-pink-300 via-purple-300 to-blue-300 bg-clip-text text-transparent italic transition-all group-hover:opacity-80 pr-2">
           JoyRide
         </span>
         <span className="mx-3 text-gray-300 font-light">|</span>
@@ -78,37 +79,47 @@ export default function Header() {
         </span>
       </div>
 
-      <nav className="flex gap-8">
-        {/* Chữ "Trang chủ" cũng gọi hàm handleReturnHome */}
-        <button
-          onClick={handleReturnHome}
-          className="hover:text-pink-400 transition-colors font-medium cursor-pointer"
-        >
-          Trang chủ
-        </button>
-        {/* Nút Dịch vụ đã sửa thành button để gọi hàm */}
-        <button
-          onClick={handleServicesClick}
-          className="hover:text-pink-400 transition-colors font-medium cursor-pointer"
-        >
-          Dịch vụ
-        </button>
-        <Link href="/contact" className="hover:text-pink-400 transition-colors">
-          Liên hệ
-        </Link>
-      </nav>
+      {/* 2. Ô Tìm kiếm (Chèn vào giữa) */}
+      <div className="flex-1 max-w-xs mx-8">
+        <div className="relative flex items-center">
+          <FaSearch className="absolute left-3 text-gray-400 text-sm" />
+          <input
+            type="text"
+            placeholder="Tìm dịch vụ..."
+            className="w-full bg-gray-100 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+          />
+        </div>
+      </div>
 
-      <div>
-        {user ? (
-          <UserDropdown user={user} />
-        ) : (
-          <Link
-            href="/login"
-            className="bg-pink-100 hover:bg-pink-200 text-pink-600 px-6 py-2 rounded-full font-semibold transition-all"
+      <div className="flex items-center gap-8">
+        <nav className="flex gap-6">
+          {/* Nút Dịch vụ đã sửa thành button để gọi hàm */}
+          <button
+            onClick={handleServicesClick}
+            className="hover:text-pink-400 transition-colors font-medium cursor-pointer"
           >
-            ĐĂNG NHẬP
+            Dịch vụ
+          </button>
+          <Link
+            href="/contact"
+            className="hover:text-pink-400 transition-colors"
+          >
+            Liên hệ
           </Link>
-        )}
+        </nav>
+
+        <div>
+          {user ? (
+            <UserDropdown user={user} />
+          ) : (
+            <Link
+              href="/login"
+              className="hover:text-pink-400 transition-colors"
+            >
+              <FaUser size={20} />
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -11,7 +11,7 @@ import {
 const Footer = () => {
   return (
     <footer className="bg-white py-12 border-t border-gray-100">
-      <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-12">
         {/* Cột trái: Thông tin liên hệ */}
         <div>
           <h3 className="text-lg font-bold uppercase mb-4">
@@ -32,6 +32,23 @@ const Footer = () => {
           </Link>
         </div>
 
+        {/* Cột 2: THÔNG TIN (MỚI) */}
+        <div>
+          <h3 className="text-lg font-bold uppercase mb-4">THÔNG TIN</h3>
+          <ul className="space-y-2 text-gray-600">
+            <li>
+              <Link href="/staff" className="hover:underline">
+                Đội ngũ nhân viên
+              </Link>
+            </li>
+            <li>
+              <Link href="/promotions" className="hover:underline">
+                Chương trình khuyến mãi
+              </Link>
+            </li>
+          </ul>
+        </div>
+
         {/* Cột phải: Dịch vụ khách hàng và Social Icons */}
         <div className="flex flex-col md:items-end">
           <h3 className="text-lg font-bold uppercase mb-4">
@@ -48,11 +65,7 @@ const Footer = () => {
                 Câu hỏi thường gặp (FAQ)
               </Link>
             </li>
-            <li>
-              <Link href="/promotions" className="hover:underline">
-                Thẻ quà tặng / Ưu đãi
-              </Link>
-            </li>
+
             <li>
               <Link href="/policy" className="hover:underline">
                 Chính sách & Bảo hành
