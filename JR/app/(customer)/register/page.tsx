@@ -1,51 +1,70 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client"; //dam bao duong dan dung
 
 import Link from "next/link";
 
+// Hàm chuyển đổi thông báo lỗi của Supabase sang Tiếng Việt
+const getVietnameseAuthError = (message: string): string => {
+  const msg = message.toLowerCase();
+  if (
+    msg.includes("email already in use") ||
+    msg.includes("already registered")
+  ) {
+    return "Email này đã được sử dụng cho một tài khoản khác.";
+  }
+  if (msg.includes("password should be at least")) {
+    return "Mật khẩu quá ngắn (Yêu cầu tối thiểu phải từ 6 ký tự trở lên).";
+  }
+  if (msg.includes("invalid email")) {
+    return "Định dạng địa chỉ Email không hợp lệ.";
+  }
+  if (msg.includes("network error") || msg.includes("failed to fetch")) {
+    return "Lỗi kết nối mạng hoặc cấu hình hệ thống chưa đúng.";
+  }
+  // Nếu gặp lỗi khác chưa định nghĩa sẵn, trả về nội dung dịch tổng quát
+  return `Đăng ký không thành công. Chi tiết: ${message}`;
+};
 export default function RegisterPage() {
+  const router = useRouter();
   const supabase = createClient();
-  const [fullName, setFullName] = useState("");
+  const [fullname, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Đăng ký tài khoản mới
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) {
-      alert("Lỗi đăng ký: " + authError.message);
+    if (!fullname.trim()) {
+      alert("Vui lòng nhập Họ và tên.");
       return;
     }
 
-    // 2. Nếu đăng ký thành công, Supabase sẽ tự động tạo session
-    if (data.user) {
-      // 3. Lưu fullname và user_id vào bảng 'customers'
-      const { error: insertError } = await supabase.from("customers").insert([
-        {
-          user_id: data.user.id, // ID từ hệ thống Auth
-          fullname: fullName, // State bạn tạo từ ô input Họ và tên
-          //email: email,
+    // Gọi API của Supabase Auth và truyền kèm fullname vào meta_data để trigger phía trên bắt được
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          fullname: fullname, // Đẩy họ tên lên metadata hệ thống
         },
-      ]);
+      },
+    });
 
-      if (insertError) {
-        alert("Đăng ký thành công nhưng lỗi tạo hồ sơ: " + insertError.message);
-        return;
-      }
+    if (authError) {
+      alert(getVietnameseAuthError(authError.message));
+      return;
+    }
 
-      // 4. Đăng nhập thành công và chuyển hướng về trang chủ
-      alert("Đăng ký thành công!");
-      window.location.href = "/"; // Dùng window.location để refresh session hoàn toàn
+    if (data.user) {
+      alert("Đăng ký tài khoản thành công! Hệ thống tự động khởi tạo hồ sơ ✨");
+      //window.location.href = "/";
+      router.push("/"); // Thay vì dùng window.location.href
+      router.refresh(); // Ép làm mới lại Layout để Header nhận diện User mới ngay lập tức
     }
   };
+
   return (
     <div className="max-w-md mx-auto py-16 px-6">
       <div className="bg-white p-8 rounded-3xl border border-stone-100 shadow-sm space-y-6">

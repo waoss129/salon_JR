@@ -30,9 +30,9 @@ export default function ProfilePage() {
         return;
       }
       const { data } = await supabase
-        .from("customers")
-        .select("*")
-        .eq("user_id", user.id)
+        .from("profiles")
+        .select("fullname, phone, address, gender, dob, avatar") // Chỉ chọn các trường cần thiết, bỏ created_at, email
+        .eq("id", user.id)
         .single();
       if (data) {
         setProfile(data);
@@ -43,7 +43,6 @@ export default function ProfilePage() {
     loadData();
   }, []);
 
-  // Xử lý chọn file: CHỈ tạo đường dẫn tạm
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -61,22 +60,25 @@ export default function ProfilePage() {
 
     let avatarUrl = profile.avatar;
 
-    // Nếu có file mới, upload lên Supabase
     if (selectedFile) {
-      const fileName = `${user.id}_${Date.now()}.png`; // Đặt tên file duy nhất
+      const fileName = `${user.id}_${Date.now()}.png`;
       await supabase.storage.from("avatars").upload(fileName, selectedFile);
       const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
       avatarUrl = data.publicUrl;
     }
 
-    // Cập nhật Database (gồm cả ảnh và thông tin chữ)
+    // ĐÚNG CHUẨN: Chỉ bóc tách gửi các trường cho phép chỉnh sửa lên DB
     const { error } = await supabase
-      .from("customers")
+      .from("profiles")
       .update({
-        ...profile,
+        fullname: profile.fullname,
+        phone: profile.phone,
+        address: profile.address,
+        gender: profile.gender || null, // Lưu trực tiếp chuỗi text 'male'/'female'
+        dob: profile.dob || null,
         avatar: avatarUrl,
       })
-      .eq("user_id", user.id);
+      .eq("id", user.id);
 
     if (error) {
       alert("Lỗi: " + error.message);
@@ -113,7 +115,6 @@ export default function ProfilePage() {
         </div>
         <div>
           <h3 className="font-semibold text-stone-800">Ảnh đại diện</h3>
-
           <input
             type="file"
             ref={fileInputRef}
@@ -129,7 +130,7 @@ export default function ProfilePage() {
         {[
           { label: "Họ và tên", key: "fullname", placeholder: "Nhập họ tên" },
           { label: "Số điện thoại", key: "phone", placeholder: "Nhập SĐT" },
-          { label: "Giới tính", key: "gender", type: "select" }, // Thêm thuộc tính type
+          { label: "Giới tính", key: "gender", type: "select" },
           { label: "Địa chỉ", key: "address", placeholder: "Nhập địa chỉ" },
         ].map((field) => (
           <div key={field.key} className="space-y-1">
@@ -138,29 +139,19 @@ export default function ProfilePage() {
             </label>
 
             {field.type === "select" ? (
-              // Hiển thị SELECT cho Giới tính
               <select
-                //ep kieu ve chuoi an toan: neu null/undefined thi tra ve ""
-                value={profile.gender?.toString() ?? ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  //neu chon option rong, luu la null (hoac string rong tuy db)
-                  //neu co gia tri thi moi parseInt de tranh NaN
-
-                  setProfile({
-                    ...profile,
-                    gender: val === "" ? null : parseInt(val),
-                  });
-                }}
+                value={profile.gender ?? ""}
+                onChange={(e) =>
+                  setProfile({ ...profile, gender: e.target.value })
+                }
                 className="w-full p-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
               >
                 <option value="">Chọn giới tính</option>
-                <option value="0">Nam</option>
-                <option value="1">Nữ</option>
-                <option value="2">Khác</option>
+                <option value="male">Nam</option>
+                <option value="female">Nữ</option>
+                <option value="other">Khác</option>
               </select>
             ) : (
-              // Hiển thị INPUT cho các trường còn lại
               <input
                 value={(profile as any)[field.key] ?? ""}
                 onChange={(e) =>
@@ -174,7 +165,6 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Nút lưu */}
       <div className="mt-8 flex justify-end">
         <button
           onClick={handleSave}

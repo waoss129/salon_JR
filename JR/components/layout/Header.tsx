@@ -23,23 +23,43 @@ export default function Header() {
     router.refresh();
   };
 
-  //them useEffect de lay user khi trang load
+  //them useEffect de lay user va thong tin ho so (fullname) tu bang khach hang khi trang load
   useEffect(() => {
     if (!supabase) return; // tat supabase cloud
+    const fetchUserProfile = async (currentUser: any) => {
+      if (!currentUser) {
+        setUser(null);
+        return;
+      }
+
+      // Truy vấn vào bảng customers lấy họ tên thực tế dựa theo user_id trùng khớp
+      const { data: customerData } = await supabase
+        .from("customers")
+        .select("fullname")
+        .eq("user_id", currentUser.id)
+        .single();
+      // Hợp nhất dữ liệu Auth cốt lõi với họ tên lấy từ DB public công khai
+      setUser({
+        ...currentUser,
+        fullname: customerData?.fullname || "Khách hàng", // Fallback phòng trường hợp lỗi
+      });
+    };
+
     const checkUser = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      setUser(session?.user || null);
+      await fetchUserProfile(session?.user || null);
     };
     checkUser();
 
-    //lang nghe thay doi trang thai dang nhap / dang xuat
+    // Lắng nghe thay đổi trạng thái đăng nhập / đăng xuất thời gian thực (Real-time)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      await fetchUserProfile(session?.user || null);
     });
+
     return () => subscription.unsubscribe();
   }, [supabase]);
   const handleServicesClick = (e: React.MouseEvent) => {

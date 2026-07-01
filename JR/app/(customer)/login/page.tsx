@@ -2,10 +2,23 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
+// Hàm chuyển đổi thông báo lỗi đăng nhập sang Tiếng Việt
+const getVietnameseLoginError = (message: string): string => {
+  const msg = message.toLowerCase();
+  if (msg.includes("invalid login credentials")) {
+    return "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.";
+  }
+  if (msg.includes("email not confirmed")) {
+    return "Tài khoản chưa được xác nhận Email. Vui lòng kiểm tra hộp thư của bạn.";
+  }
+  if (msg.includes("network error") || msg.includes("failed to fetch")) {
+    return "Lỗi kết nối mạng. Không thể liên kết với máy chủ.";
+  }
+  return `Đăng nhập không thành công: ${message}`;
+};
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
@@ -13,18 +26,22 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
     if (error) {
-      alert("Lỗi: " + error.message);
+      // Hiển thị thông báo lỗi bằng Tiếng Việt thân thiện
+      alert(getVietnameseLoginError(error.message));
     } else {
-      //đăng nhập thành công, supabase sẽ tự động lưu token vào localstorage
       console.log("Đăng nhập thành công", data.session);
-      router.push("/");
-      router.refresh();
-    } // Chuyển về trang chủ sau khi đăng nhập
+
+      // THAY THẾ router.push BẰNG window.location.href:
+      // Ép toàn bộ trình duyệt reload sạch cache cũ, buộc Header và UserDropdown nạp lại để lấy tên
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -48,7 +65,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
+              className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none text-stone-800"
               placeholder="name@email.com"
               required
             />
@@ -61,7 +78,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
+              className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none text-stone-800"
               placeholder="••••••••"
               required
             />
@@ -69,7 +86,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-all shadow-md"
+            className="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-all shadow-md mt-2"
           >
             ĐĂNG NHẬP ✨
           </button>
