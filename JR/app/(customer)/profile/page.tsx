@@ -53,41 +53,88 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      // 1. Kiểm tra tài khoản hiện tại
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    let avatarUrl = profile.avatar;
+      if (!user) {
+        alert("Không tìm thấy thông tin đăng nhập. Vui lòng đăng nhập lại!");
+        setLoading(false);
+        return;
+      }
 
-    if (selectedFile) {
-      const fileName = `${user.id}_${Date.now()}.png`;
-      await supabase.storage.from("avatars").upload(fileName, selectedFile);
-      const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-      avatarUrl = data.publicUrl;
-    }
+      let avatarUrl = profile.avatar;
 
-    // ĐÚNG CHUẨN: Chỉ bóc tách gửi các trường cho phép chỉnh sửa lên DB
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        fullname: profile.fullname,
-        phone: profile.phone,
-        address: profile.address,
-        gender: profile.gender || null, // Lưu trực tiếp chuỗi text 'male'/'female'
+      // 2. XỬ LÝ UPLOAD ẢNH (Nếu có chọn file mới)
+      if (selectedFile) {
+        const fileName = `${user.id}_${Date.now()}.png`;
+
+        // Thực hiện upload và bắt lỗi riêng biệt cho Storage
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(fileName, selectedFile, { upsert: true });
+
+        if (uploadError) {
+          console.error("Lỗi Storage Upload:", uploadError);
+          alert(
+            `Không thể tải ảnh lên: ${uploadError.message}. Hệ thống sẽ tiếp tục lưu các thông tin khác.`,
+          );
+        } else {
+          // Lấy URL công khai nếu upload thành công
+          const { data } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(fileName);
+          avatarUrl = data.publicUrl;
+        }
+      }
+
+      // 3. XỬ LÝ CẬP NHẬT THÔNG TIN CHỮ VÀO DATABASE
+      const updateData: any = {
+        fullname: profile.fullname || null,
+        phone: profile.phone || null,
+        address: profile.address || null,
+        gender: profile.gender || null,
         dob: profile.dob || null,
         avatar: avatarUrl,
-      })
-      .eq("id", user.id);
+        updated_at: new Date().toISOString(), // Đảm bảo cập nhật mốc thời gian mới
+      };
 
-    if (error) {
-      alert("Lỗi: " + error.message);
-    } else {
-      setProfile({ ...profile, avatar: avatarUrl });
-      setSelectedFile(null);
-      alert("Đã lưu thành công!");
+      console.log("Dữ liệu chuẩn bị gửi lên Database:", updateData);
+
+      const { error: dbError } = await supabase
+        .from("profiles")
+        .update(updateData)
+        .eq("id", user.id);
+
+      if (dbError) {
+        console.error("Lỗi Database Update:", dbError);
+        alert(`Lỗi lưu thông tin: ${dbError.message}`);
+      } else {
+        // 🔥 BỔ SUNG ĐOẠN NÀY: Đồng bộ lại cả tên mới vào Session Auth của hệ thống
+        await supabase.auth.updateUser({
+          data: {
+            fullname: profile.fullname,
+            fullName: profile.fullname, // Đề phòng cả 2 kiểu viết hoa viết thường
+          },
+        });
+        // Đồng bộ lại state hiển thị của giao diện
+        setProfile((prev) => ({ ...prev, avatar: avatarUrl }));
+        setSelectedFile(null);
+        alert("Đã lưu thông tin thay đổi thành công!");
+
+        // Ép Next.js làm mới lại router để cập nhật tên lên Dropdown ngay lập tức
+        //router.refresh();
+        // Làm mới lại toàn bộ trang để thanh Header bắt được Session mới
+        window.location.reload();
+      }
+    } catch (catchError: any) {
+      console.error("Lỗi hệ thống ngoài dự kiến:", catchError);
+      alert(`Đã xảy ra lỗi hệ thống: ${catchError.message || catchError}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (loading) return <div>Đang tải...</div>;
