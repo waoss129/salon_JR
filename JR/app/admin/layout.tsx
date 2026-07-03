@@ -122,6 +122,12 @@ export default function AdminLayout({
                     Quản Lý
                   </Link>
                   <Link
+                    href="/admin/staff/beautician"
+                    className="block p-2 text-sm hover:text-violet-500"
+                  >
+                    Chuyên Viên
+                  </Link>
+                  <Link
                     href="/admin/staff/receptionist"
                     className="block p-2 text-sm hover:text-violet-500"
                   >
@@ -130,14 +136,6 @@ export default function AdminLayout({
                 </div>
               )}
             </div>
-
-            {/* Chuyên Viên */}
-            <Link
-              href="/admin/beauticians"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Chuyên Viên
-            </Link>
 
             {/* Khách Hàng */}
             <Link
