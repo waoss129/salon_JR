@@ -1,55 +1,40 @@
 "use server";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/server";
 
-export async function addStaff(formData: FormData) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+export async function addStaff(formData: FormData, roleId: number) {
+  const supabase = await createAdminClient();
 
-  let userId: string;
+  const email = (formData.get("email") as string).trim();
+  const password = "Password123!";
+  const fullname = (formData.get("fullname") as string).trim();
+  const phone = (formData.get("phone") as string).trim();
+  const gender = (formData.get("gender") as string).trim();
 
-  // 1. Cố gắng tạo user
+  // 1. TẠO AUTH USER (Bước này chắc chắn tạo ra user trong Authentication)
   const { data: authData, error: authError } =
     await supabase.auth.admin.createUser({
-      email: formData.get("email") as string,
-      password: "Password123!",
+      email: email,
+      password: password,
       email_confirm: true,
+      user_metadata: { full_name: fullname }, // Truyền tên vào đây
     });
 
-  if (authError) {
-    if (authError.message.includes("already been registered")) {
-      // Nếu trùng email, lấy ID của người dùng đó ra
-      const { data: userData } = await supabase.auth.admin.listUsers();
-      const existingUser = userData.users.find(
-        (u) => u.email === formData.get("email"),
-      );
-      if (!existingUser) throw new Error("Không tìm thấy user cũ!");
-      userId = existingUser.id;
-    } else {
-      throw authError;
-    }
-  } else {
-    userId = authData.user.id;
-  }
+  if (authError) throw authError;
 
-  // 2. Insert hoặc Update Profile (Dùng upsert để tránh lỗi trùng ID)
-  const { error: pError } = await supabase.from("profiles").upsert({
-    id: userId,
-    fullname: formData.get("fullname"),
-    email: formData.get("email"),
-    phone: formData.get("phone"),
-    gender: formData.get("gender"),
-  });
+  // 2. CHÈN VÀO PROFILES (Dùng ID vừa tạo từ bước 1)
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ fullname, phone, gender })
+    .eq("id", authData.user.id);
 
-  if (pError) throw pError;
+  if (profileError) throw profileError;
 
-  // 3. Insert Employee
-  const { error: eError } = await supabase.from("employees").upsert({
-    id: userId,
-    role_id: parseInt(formData.get("role_id") as string, 10),
+  // 3. CHÈN VÀO EMPLOYEES
+  const { error: empError } = await supabase.from("employees").insert({
+    id: authData.user.id,
+    role_id: roleId,
     status: "active",
   });
 
-  if (eError) throw eError;
+  if (empError) throw empError;
 }

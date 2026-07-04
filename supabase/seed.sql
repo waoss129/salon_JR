@@ -4,7 +4,7 @@ SET session_replication_role = replica;
 -- PostgreSQL database dump
 --
 
--- \restrict c2yRitE7J4Uq6STBrgxX4vuVdKhZPTOdi8TtW8KVjfQjWfBZYJ4TRX1m1Tz3deU
+-- \restrict esfgmFI0WcAPEBkCXNWPEdpe1UjMGBw5gDnr6qDpiehJGMcfGlyrqna0uLEJJrZ
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -38,7 +38,43 @@ INSERT INTO "auth"."audit_log_entries" ("instance_id", "id", "payload", "created
 	('00000000-0000-0000-0000-000000000000', '74629c46-7181-4849-a015-9e6ce280dd87', '{"action":"logout","actor_id":"25120500-082b-4197-83c8-857cd2f1b350","actor_username":"kimw@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-02 14:15:52.231589+00', ''),
 	('00000000-0000-0000-0000-000000000000', 'bb7abf0e-de74-4d7a-bca2-4e3bb69831a9', '{"action":"user_signedup","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"provider":"email","user_email":"dan@gmail.com","user_id":"21ab18f4-b9bc-4b69-9253-fdb83a905302","user_phone":""}}', '2026-07-03 19:13:45.548677+00', ''),
 	('00000000-0000-0000-0000-000000000000', 'f001b513-5685-43d7-a008-edd381eb18af', '{"action":"user_signedup","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"provider":"email","user_email":"fun@gmail.com","user_id":"9d5357b5-85ae-4e48-965b-0eec0e4ad8b5","user_phone":""}}', '2026-07-03 19:25:22.385115+00', ''),
-	('00000000-0000-0000-0000-000000000000', 'e21f3185-4c17-4322-9f7d-52e6390aedf3', '{"action":"user_signedup","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"provider":"email","user_email":"yibo@gmail.com","user_id":"40c7eaad-fc72-48df-b608-39039f02c04d","user_phone":""}}', '2026-07-03 19:31:20.480685+00', '');
+	('00000000-0000-0000-0000-000000000000', 'e21f3185-4c17-4322-9f7d-52e6390aedf3', '{"action":"user_signedup","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"provider":"email","user_email":"yibo@gmail.com","user_id":"40c7eaad-fc72-48df-b608-39039f02c04d","user_phone":""}}', '2026-07-03 19:31:20.480685+00', ''),
+	('00000000-0000-0000-0000-000000000000', '24d25951-ea6a-43be-a820-0b1087a91fde', '{"action":"user_signedup","actor_id":"b6d70ae4-b30d-4744-b2ec-1a502d46f41a","actor_username":"jang@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 07:55:49.470064+00', ''),
+	('00000000-0000-0000-0000-000000000000', '0ae4e727-5768-4981-a036-0d977957ca66', '{"action":"login","actor_id":"b6d70ae4-b30d-4744-b2ec-1a502d46f41a","actor_username":"jang@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 07:55:49.522788+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'b9147c19-52fa-4307-9286-a3124c31de5e', '{"action":"user_modified","actor_id":"b6d70ae4-b30d-4744-b2ec-1a502d46f41a","actor_username":"jang@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 07:56:03.266731+00', ''),
+	('00000000-0000-0000-0000-000000000000', '62646ad8-49cf-4e7c-b5bd-fd207b8ae63c', '{"action":"logout","actor_id":"b6d70ae4-b30d-4744-b2ec-1a502d46f41a","actor_username":"jang@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 08:02:40.75578+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'be5d4392-9295-4356-a0a2-f22a74c3dfbe', '{"action":"user_deleted","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"user_email":"jang@gmail.com","user_id":"b6d70ae4-b30d-4744-b2ec-1a502d46f41a","user_phone":""}}', '2026-07-04 08:03:03.045757+00', ''),
+	('00000000-0000-0000-0000-000000000000', '0b4b0796-95db-4949-bbd4-e7968d12bd3f', '{"action":"user_signedup","actor_id":"c83391bc-74fc-4dbb-8846-3bb5cc6a9a69","actor_username":"liz@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 08:21:25.076005+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'e66cac47-868b-4799-8af4-1fbac99e7863', '{"action":"login","actor_id":"c83391bc-74fc-4dbb-8846-3bb5cc6a9a69","actor_username":"liz@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 08:21:25.135651+00', ''),
+	('00000000-0000-0000-0000-000000000000', '8dfac718-93f8-4290-a999-50623f3cee5b', '{"action":"user_signedup","actor_id":"c86f2660-4985-4949-95eb-6a46098fc22e","actor_username":"liz@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 08:33:38.631311+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'f246fc50-cdb0-4f4c-a95f-158fa7c20cbd', '{"action":"login","actor_id":"c86f2660-4985-4949-95eb-6a46098fc22e","actor_username":"liz@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 08:33:38.690158+00', ''),
+	('00000000-0000-0000-0000-000000000000', '1ac9629a-14d4-4d0f-b8ce-176fbec493bc', '{"action":"user_modified","actor_id":"c86f2660-4985-4949-95eb-6a46098fc22e","actor_username":"liz@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 08:34:22.212761+00', ''),
+	('00000000-0000-0000-0000-000000000000', '530336ea-7e23-42da-9093-823de2dfe313', '{"action":"logout","actor_id":"c86f2660-4985-4949-95eb-6a46098fc22e","actor_username":"liz@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 09:16:36.675257+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'a9dc6d51-72fe-4134-a961-da31f8db8279', '{"action":"user_signedup","actor_id":"a00067e6-1805-4702-8fdf-c3a609079097","actor_username":"han@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 09:16:53.217697+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'f1826399-1333-4681-82f5-7103b546465f', '{"action":"login","actor_id":"a00067e6-1805-4702-8fdf-c3a609079097","actor_username":"han@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 09:16:53.340731+00', ''),
+	('00000000-0000-0000-0000-000000000000', '168408ad-941a-41e7-8f8e-374174b10cee', '{"action":"user_modified","actor_id":"a00067e6-1805-4702-8fdf-c3a609079097","actor_username":"han@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 09:17:05.065071+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'b9cea62d-7e53-4fca-9d0c-1e30fdb2bfed', '{"action":"logout","actor_id":"a00067e6-1805-4702-8fdf-c3a609079097","actor_username":"han@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 09:43:30.775993+00', ''),
+	('00000000-0000-0000-0000-000000000000', '5b941e31-13cd-402c-8ad0-663dca07fa9f', '{"action":"user_signedup","actor_id":"ce0b06be-3d66-4822-aa83-efa75c8b5ced","actor_username":"anh@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 09:46:46.573582+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'fe74930a-9e03-4e68-a34a-2eb10f365d6c', '{"action":"login","actor_id":"ce0b06be-3d66-4822-aa83-efa75c8b5ced","actor_username":"anh@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 09:46:46.622162+00', ''),
+	('00000000-0000-0000-0000-000000000000', '1cfcfe67-b17a-4680-a8ea-890d8f4e3719', '{"action":"user_deleted","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"user_email":"anh@gmail.com","user_id":"ce0b06be-3d66-4822-aa83-efa75c8b5ced","user_phone":""}}', '2026-07-04 09:52:49.795308+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'f3a5816e-7cb8-462e-9aae-dc35d09679b6', '{"action":"user_signedup","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 09:58:22.507063+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'cf0dca11-81af-4a1b-acbc-a50b0689d905', '{"action":"login","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 09:58:22.559934+00', ''),
+	('00000000-0000-0000-0000-000000000000', '854b18a8-cd6b-4d97-a3d2-62a5852b45ed', '{"action":"user_modified","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 10:00:06.662756+00', ''),
+	('00000000-0000-0000-0000-000000000000', '6451047e-875e-4fbc-b5d8-ca7b5547bf05', '{"action":"logout","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 10:05:20.708949+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'a325f873-0746-4b20-ab95-80676f15227e', '{"action":"login","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 10:05:36.975528+00', ''),
+	('00000000-0000-0000-0000-000000000000', '43628f52-e6a0-44c1-b178-9f81b888f57b', '{"action":"user_modified","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 10:05:50.578967+00', ''),
+	('00000000-0000-0000-0000-000000000000', '686ab6bf-543b-4f91-b8fd-15aa8a922fc9', '{"action":"logout","actor_id":"0a8cfe56-3563-46e2-8d9d-a8eceb08bce9","actor_username":"hun@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 10:06:07.624893+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'c0fa935d-a433-4870-9ee1-d959495598fe', '{"action":"user_signedup","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"provider":"email","user_email":"seo@gmail.com","user_id":"b7bbfbae-9257-468e-8d01-f5ecd3cdd6cd","user_phone":""}}', '2026-07-04 10:14:12.207589+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'bb54dc1f-cab2-4bdf-a5a1-13e29faf375d', '{"action":"user_signedup","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"provider":"email","user_email":"lanshen@gmail.com","user_id":"24c9b2a0-9b9b-4c00-93ab-a223013102fa","user_phone":""}}', '2026-07-04 10:16:25.760758+00', ''),
+	('00000000-0000-0000-0000-000000000000', '5a96e70f-d0d2-487b-9c81-45fa2680fc3a', '{"action":"user_signedup","actor_id":"c210e22b-0274-4b47-9adf-fbb8fbe61cf2","actor_username":"chao@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 10:17:38.44922+00', ''),
+	('00000000-0000-0000-0000-000000000000', '9f3c5e08-6141-4db3-9aad-a64ff1d66bf3', '{"action":"login","actor_id":"c210e22b-0274-4b47-9adf-fbb8fbe61cf2","actor_username":"chao@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 10:17:38.499617+00', ''),
+	('00000000-0000-0000-0000-000000000000', '1cdf5159-8a55-45d5-a9c9-819bdb20fe1d', '{"action":"user_modified","actor_id":"c210e22b-0274-4b47-9adf-fbb8fbe61cf2","actor_username":"chao@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 10:18:20.491788+00', ''),
+	('00000000-0000-0000-0000-000000000000', '7f18ce8a-9103-408c-9e45-6e0f75cb0e77', '{"action":"logout","actor_id":"c210e22b-0274-4b47-9adf-fbb8fbe61cf2","actor_username":"chao@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 10:18:29.211176+00', ''),
+	('00000000-0000-0000-0000-000000000000', '3bc11b01-75ea-46bd-83f0-86619040af91', '{"action":"user_signedup","actor_id":"84c15dff-946b-496c-b649-99303efbd59e","actor_username":"tin@gmail.com","actor_via_sso":false,"log_type":"team","traits":{"provider":"email"}}', '2026-07-04 10:23:22.41906+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'c82765ca-a376-4a90-8a50-0b6167a19794', '{"action":"login","actor_id":"84c15dff-946b-496c-b649-99303efbd59e","actor_username":"tin@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-04 10:23:22.446838+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'e5e4663d-4f58-4bb4-8338-fe196db8952c', '{"action":"user_deleted","actor_id":"00000000-0000-0000-0000-000000000000","actor_username":"service_role","actor_via_sso":false,"log_type":"team","traits":{"user_email":"chao@gmail.com","user_id":"c210e22b-0274-4b47-9adf-fbb8fbe61cf2","user_phone":""}}', '2026-07-04 10:23:40.062883+00', ''),
+	('00000000-0000-0000-0000-000000000000', '5593d17e-f33c-4bec-940f-c89248422650', '{"action":"user_modified","actor_id":"84c15dff-946b-496c-b649-99303efbd59e","actor_username":"tin@gmail.com","actor_via_sso":false,"log_type":"user"}', '2026-07-04 10:24:11.871588+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'ad0b9686-7f9a-4448-9d66-5c29f34833a2', '{"action":"logout","actor_id":"84c15dff-946b-496c-b649-99303efbd59e","actor_username":"tin@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-04 10:24:18.548593+00', '');
 
 
 --
@@ -58,12 +94,8 @@ INSERT INTO "auth"."audit_log_entries" ("instance_id", "id", "payload", "created
 --
 
 INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new", "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data", "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change", "phone_change_token", "phone_change_sent_at", "email_change_token_current", "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at", "is_sso_user", "deleted_at", "is_anonymous") VALUES
-	('00000000-0000-0000-0000-000000000000', 'ea6cda8d-a2a1-4099-b5a3-7c8836efd104', 'authenticated', 'authenticated', 'kim@gmail.com', '$2a$10$0.5Xly1ugNschZ21z1LmXevmsRWYopLl3jmE.QTMqv43hl66G3nYO', '2026-07-02 12:38:59.627425+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-02 12:38:59.789656+00', '{"provider": "email", "providers": ["email"]}', '{"sub": "ea6cda8d-a2a1-4099-b5a3-7c8836efd104", "email": "kim@gmail.com", "fullname": "Kim", "email_verified": true, "phone_verified": false}', NULL, '2026-07-02 12:38:59.609673+00', '2026-07-02 12:38:59.796718+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
-	('00000000-0000-0000-0000-000000000000', '57759410-f88d-4ed0-8153-27bd2c54257d', 'authenticated', 'authenticated', 'anh123@gmail.com', '$2a$10$reAANOKCCArkhFEpu1PUNef.ypw3cGBanO3FiqXHlyXCEbL3JOAKy', '2026-07-02 12:22:08.163879+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-02 12:22:08.249022+00', '{"provider": "email", "providers": ["email"]}', '{"sub": "57759410-f88d-4ed0-8153-27bd2c54257d", "email": "anh123@gmail.com", "fullname": "anh phß║ím", "email_verified": true, "phone_verified": false}', NULL, '2026-07-02 12:22:08.076398+00', '2026-07-02 12:22:08.279649+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
-	('00000000-0000-0000-0000-000000000000', '25120500-082b-4197-83c8-857cd2f1b350', 'authenticated', 'authenticated', 'kimw@gmail.com', '$2a$10$7wdq.R16IpTbYI8FwY/jguiN3Fb5WApJRpOPkThyKhvMGhmyM4Hai', '2026-07-02 12:33:08.200835+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-02 14:15:17.599905+00', '{"provider": "email", "providers": ["email"]}', '{"sub": "25120500-082b-4197-83c8-857cd2f1b350", "email": "kimw@gmail.com", "fullName": "kim ji won", "fullname": "kim ji won", "email_verified": true, "phone_verified": false}', NULL, '2026-07-02 12:33:08.15864+00', '2026-07-02 14:15:32.522829+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
-	('00000000-0000-0000-0000-000000000000', '21ab18f4-b9bc-4b69-9253-fdb83a905302', 'authenticated', 'authenticated', 'dan@gmail.com', '$2a$10$rHjVZ26E0xwWqCOWl3pt/uHPXflKzAyyL8eZKDkJ/qjLxWSDbTipO', '2026-07-03 19:13:45.691801+00', NULL, '', NULL, '', NULL, '', '', NULL, NULL, '{"provider": "email", "providers": ["email"]}', '{"role": "3", "email_verified": true}', NULL, '2026-07-03 19:13:45.435163+00', '2026-07-03 19:13:45.714879+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
-	('00000000-0000-0000-0000-000000000000', '9d5357b5-85ae-4e48-965b-0eec0e4ad8b5', 'authenticated', 'authenticated', 'fun@gmail.com', '$2a$10$CZXaOLNGkKQ6GXv1mc196ORhbwIROzmoh9ilvvLDaCyW.bOkuNAFW', '2026-07-03 19:25:22.401937+00', NULL, '', NULL, '', NULL, '', '', NULL, NULL, '{"provider": "email", "providers": ["email"]}', '{"role": "3", "email_verified": true}', NULL, '2026-07-03 19:25:22.346734+00', '2026-07-03 19:25:22.405121+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
-	('00000000-0000-0000-0000-000000000000', '40c7eaad-fc72-48df-b608-39039f02c04d', 'authenticated', 'authenticated', 'yibo@gmail.com', '$2a$10$6iDkiDP0feYbWEIxBrBenOBq8R4w/g439X53xuELuWSA0tK96OW1q', '2026-07-03 19:31:20.487576+00', NULL, '', NULL, '', NULL, '', '', NULL, NULL, '{"provider": "email", "providers": ["email"]}', '{"email_verified": true}', NULL, '2026-07-03 19:31:20.456434+00', '2026-07-03 19:31:20.491455+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false);
+	('00000000-0000-0000-0000-000000000000', '24c9b2a0-9b9b-4c00-93ab-a223013102fa', 'authenticated', 'authenticated', 'lanshen@gmail.com', '$2a$10$2vK4Kg6ih1vyX2RlPKzzPOoTjjiGHwqiJwIFaDtmBSRa4atAwjzd.', '2026-07-04 10:16:25.763956+00', NULL, '', NULL, '', NULL, '', '', NULL, NULL, '{"provider": "email", "providers": ["email"]}', '{"full_name": "Đường Lam Thần", "email_verified": true}', NULL, '2026-07-04 10:16:25.753541+00', '2026-07-04 10:16:25.765801+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
+	('00000000-0000-0000-0000-000000000000', '84c15dff-946b-496c-b649-99303efbd59e', 'authenticated', 'authenticated', 'tin@gmail.com', '$2a$10$0olnhP.9ABs2AttBN.BsSee9148mLXUTMGvo0cQV42TPWqLByk7ry', '2026-07-04 10:23:22.423314+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-04 10:23:22.449705+00', '{"provider": "email", "providers": ["email"]}', '{"sub": "84c15dff-946b-496c-b649-99303efbd59e", "email": "tin@gmail.com", "fullName": "Martin", "fullname": "Martin", "email_verified": true, "phone_verified": false}', NULL, '2026-07-04 10:23:22.376558+00', '2026-07-04 10:24:11.869593+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false);
 
 
 --
@@ -71,12 +103,8 @@ INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encryp
 --
 
 INSERT INTO "auth"."identities" ("provider_id", "user_id", "identity_data", "provider", "last_sign_in_at", "created_at", "updated_at", "id") VALUES
-	('57759410-f88d-4ed0-8153-27bd2c54257d', '57759410-f88d-4ed0-8153-27bd2c54257d', '{"sub": "57759410-f88d-4ed0-8153-27bd2c54257d", "email": "anh123@gmail.com", "fullname": "anh phß║ím", "email_verified": false, "phone_verified": false}', 'email', '2026-07-02 12:22:08.148754+00', '2026-07-02 12:22:08.148805+00', '2026-07-02 12:22:08.148805+00', '0b36b39e-21f4-4301-8fcf-50e741570cef'),
-	('25120500-082b-4197-83c8-857cd2f1b350', '25120500-082b-4197-83c8-857cd2f1b350', '{"sub": "25120500-082b-4197-83c8-857cd2f1b350", "email": "kimw@gmail.com", "fullname": "liz", "email_verified": false, "phone_verified": false}', 'email', '2026-07-02 12:33:08.192263+00', '2026-07-02 12:33:08.192399+00', '2026-07-02 12:33:08.192399+00', 'ad98d16f-f20b-4203-a6fb-63e71dcd032f'),
-	('ea6cda8d-a2a1-4099-b5a3-7c8836efd104', 'ea6cda8d-a2a1-4099-b5a3-7c8836efd104', '{"sub": "ea6cda8d-a2a1-4099-b5a3-7c8836efd104", "email": "kim@gmail.com", "fullname": "Kim", "email_verified": false, "phone_verified": false}', 'email', '2026-07-02 12:38:59.619673+00', '2026-07-02 12:38:59.619727+00', '2026-07-02 12:38:59.619727+00', '48ddbb7e-798b-4875-b1d9-4ef48a76b62c'),
-	('21ab18f4-b9bc-4b69-9253-fdb83a905302', '21ab18f4-b9bc-4b69-9253-fdb83a905302', '{"sub": "21ab18f4-b9bc-4b69-9253-fdb83a905302", "email": "dan@gmail.com", "email_verified": false, "phone_verified": false}', 'email', '2026-07-03 19:13:45.497362+00', '2026-07-03 19:13:45.498058+00', '2026-07-03 19:13:45.498058+00', '27b40bda-69dd-4683-a83e-2edc9532d73d'),
-	('9d5357b5-85ae-4e48-965b-0eec0e4ad8b5', '9d5357b5-85ae-4e48-965b-0eec0e4ad8b5', '{"sub": "9d5357b5-85ae-4e48-965b-0eec0e4ad8b5", "email": "fun@gmail.com", "email_verified": false, "phone_verified": false}', 'email', '2026-07-03 19:25:22.372252+00', '2026-07-03 19:25:22.372652+00', '2026-07-03 19:25:22.372652+00', 'e7041df7-9381-4784-aea8-42c2766418ac'),
-	('40c7eaad-fc72-48df-b608-39039f02c04d', '40c7eaad-fc72-48df-b608-39039f02c04d', '{"sub": "40c7eaad-fc72-48df-b608-39039f02c04d", "email": "yibo@gmail.com", "email_verified": false, "phone_verified": false}', 'email', '2026-07-03 19:31:20.473591+00', '2026-07-03 19:31:20.473672+00', '2026-07-03 19:31:20.473672+00', '9c19f2c7-57e5-4b71-b4f5-c05424dc071c');
+	('24c9b2a0-9b9b-4c00-93ab-a223013102fa', '24c9b2a0-9b9b-4c00-93ab-a223013102fa', '{"sub": "24c9b2a0-9b9b-4c00-93ab-a223013102fa", "email": "lanshen@gmail.com", "email_verified": false, "phone_verified": false}', 'email', '2026-07-04 10:16:25.757955+00', '2026-07-04 10:16:25.757995+00', '2026-07-04 10:16:25.757995+00', '44a743b1-d32d-4db9-8c77-c6713a8cda34'),
+	('84c15dff-946b-496c-b649-99303efbd59e', '84c15dff-946b-496c-b649-99303efbd59e', '{"sub": "84c15dff-946b-496c-b649-99303efbd59e", "email": "tin@gmail.com", "fullname": "Matin", "email_verified": false, "phone_verified": false}', 'email', '2026-07-04 10:23:22.409803+00', '2026-07-04 10:23:22.409857+00', '2026-07-04 10:23:22.409857+00', '0305ffc0-7817-4b0d-8ba6-14921d21006e');
 
 
 --
@@ -186,10 +214,8 @@ INSERT INTO "auth"."identities" ("provider_id", "user_id", "identity_data", "pro
 --
 
 INSERT INTO "public"."profiles" ("id", "created_at", "avatar", "gender", "dob", "phone", "address", "email", "updated_at", "fullname") VALUES
-	('ea6cda8d-a2a1-4099-b5a3-7c8836efd104', '2026-07-02 12:38:59.609089+00', NULL, NULL, NULL, NULL, NULL, 'kim@gmail.com', '2026-07-02 12:50:01.455+00', 'Trang Anh'),
-	('25120500-082b-4197-83c8-857cd2f1b350', '2026-07-02 12:33:08.155017+00', 'http://localhost:54321/storage/v1/object/public/avatars/25120500-082b-4197-83c8-857cd2f1b350_1782996944925.png', 'female', NULL, NULL, NULL, 'kimw@gmail.com', '2026-07-02 14:15:32.276+00', 'kim ji won'),
-	('9d5357b5-85ae-4e48-965b-0eec0e4ad8b5', '2026-07-03 19:25:22.477785+00', NULL, 'male', NULL, '0123456789', NULL, 'fun@gmail.com', '2026-07-03 19:25:22.477785+00', 'Funny'),
-	('40c7eaad-fc72-48df-b608-39039f02c04d', '2026-07-03 19:31:20.544624+00', NULL, 'male', NULL, '0123456789', NULL, 'yibo@gmail.com', '2026-07-03 19:31:20.544624+00', 'Wang Yi Bo');
+	('24c9b2a0-9b9b-4c00-93ab-a223013102fa', '2026-07-04 10:16:25.752181+00', NULL, 'female', NULL, '0906336643', NULL, 'lanshen@gmail.com', '2026-07-04 10:16:25.752181+00', 'Đường Lam Thần'),
+	('84c15dff-946b-496c-b649-99303efbd59e', '2026-07-04 10:23:22.370864+00', NULL, NULL, NULL, NULL, NULL, 'tin@gmail.com', '2026-07-04 10:24:11.653+00', 'Martin');
 
 
 --
@@ -197,8 +223,7 @@ INSERT INTO "public"."profiles" ("id", "created_at", "avatar", "gender", "dob", 
 --
 
 INSERT INTO "public"."customers" ("id", "created_at", "status", "updated_at") VALUES
-	('25120500-082b-4197-83c8-857cd2f1b350', '2026-07-02 12:33:08.155017+00', 'active', '2026-07-02 12:33:08.155017+00'),
-	('ea6cda8d-a2a1-4099-b5a3-7c8836efd104', '2026-07-02 12:38:59.609089+00', 'active', '2026-07-02 12:38:59.609089+00');
+	('84c15dff-946b-496c-b649-99303efbd59e', '2026-07-04 10:23:22.370864+00', 'active', '2026-07-04 10:23:22.370864+00');
 
 
 --
@@ -217,6 +242,8 @@ INSERT INTO "public"."roles" ("id", "created_at", "role_name", "updated_at") OVE
 -- Data for Name: employees; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
+INSERT INTO "public"."employees" ("id", "created_at", "role_id", "updated_at", "status") VALUES
+	('24c9b2a0-9b9b-4c00-93ab-a223013102fa', '2026-07-04 10:16:26.261244+00', 3, '2026-07-04 10:16:26.261244+00', 'active');
 
 
 --
@@ -374,7 +401,7 @@ INSERT INTO "storage"."objects" ("id", "bucket_id", "name", "owner", "created_at
 -- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: supabase_auth_admin
 --
 
-SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 6, true);
+SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 15, true);
 
 
 --
@@ -416,6 +443,6 @@ SELECT pg_catalog.setval('"supabase_functions"."hooks_id_seq"', 1, false);
 -- PostgreSQL database dump complete
 --
 
--- \unrestrict c2yRitE7J4Uq6STBrgxX4vuVdKhZPTOdi8TtW8KVjfQjWfBZYJ4TRX1m1Tz3deU
+-- \unrestrict esfgmFI0WcAPEBkCXNWPEdpe1UjMGBw5gDnr6qDpiehJGMcfGlyrqna0uLEJJrZ
 
 RESET ALL;

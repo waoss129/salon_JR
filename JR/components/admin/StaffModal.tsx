@@ -18,12 +18,14 @@ export default function StaffModal({ roleId }: { roleId: number }) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <form
             action={async (formData) => {
-              await addStaff(formData);
+              //roleId da co san tu props cua component nay
+              await addStaff(formData, roleId);
               setIsOpen(false);
             }}
             className="bg-white p-6 rounded shadow-lg w-96 space-y-3"
           >
             <h2 className="text-lg font-bold">Thêm nhân viên mới</h2>
+
             <input
               name="fullname"
               placeholder="Họ và tên"
@@ -42,13 +44,14 @@ export default function StaffModal({ roleId }: { roleId: number }) {
               placeholder="Số điện thoại"
               className="border p-2 w-full"
             />
+
             <select name="gender" className="border p-2 w-full">
               <option value="male">Nam</option>
               <option value="female">Nữ</option>
               <option value="other">Khác</option>
             </select>
 
-            {/* Truyền ID của role vào form */}
+            {/* Input ẩn để giữ roleId */}
             <input type="hidden" name="role_id" value={roleId} />
 
             <div className="flex gap-2 justify-end mt-4">

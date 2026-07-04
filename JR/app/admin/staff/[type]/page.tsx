@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
-import { createClient } from "@/lib/supabase/server";
+//import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import StaffModal from "@/components/admin/StaffModal";
 
 export default async function StaffPage({
@@ -7,7 +8,7 @@ export default async function StaffPage({
 }: {
   params: Promise<{ type: string }>;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const { type } = await params; // 'manager', 'beautician', hay 'receptionist'
 
   // 1. Ánh xạ 'type' từ URL sang 'roleId' để truyền vào Modal
@@ -23,12 +24,20 @@ export default async function StaffPage({
   // Truy vấn lấy nhân viên kèm thông tin profile và role
   // Sử dụng inner join để lọc dữ liệu theo role_name
   // Ví dụ truy vấn đúng
-  const { data: staffList, error } = await supabase.from("employees").select(`
+  const { data: staffList, error } = await supabase
+    .from("employees")
+    .select(
+      `
     *,
     profiles (fullname, email, phone, gender, avatar)
-  `);
-  // .eq("role_id", currentRoleId); // Tạm bỏ dòng này để xem tất cả // Lọc theo role hiện tại
+  `,
+    )
+    .eq("role_id", currentRoleId);
 
+  if (error) {
+    console.error("Lỗi Supabase:", JSON.stringify(error, null, 2));
+    return <div>Lỗi: {error.message || "Không thể lấy dữ liệu"}</div>;
+  }
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">

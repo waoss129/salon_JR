@@ -43,25 +43,60 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
 
 
+CREATE OR REPLACE FUNCTION "public"."create_base_user"("user_id" "uuid", "user_email" "text", "user_fullname" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+begin
+  insert into public.profiles (id, email, fullname)
+  values (user_id, user_email, user_fullname);
+end;
+$$;
+
+
+ALTER FUNCTION "public"."create_base_user"("user_id" "uuid", "user_email" "text", "user_fullname" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."create_staff"("user_email" "text", "user_password" "text", "user_fullname" "text", "user_phone" "text", "user_gender" "text", "user_role_id" bigint) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    new_user_id uuid;
+BEGIN
+    -- 1. Tạo user trong auth
+    INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data)
+    VALUES (extensions.uuid_generate_v4(), user_email, crypt(user_password, gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}')
+    RETURNING id INTO new_user_id;
+
+    -- 2. ÉP BUỘC tạo profile trước khi chèn vào employee (Sửa lỗi 23503)
+    INSERT INTO public.profiles (id, email, fullname, phone, gender)
+    VALUES (new_user_id, user_email, user_fullname, user_phone, user_gender)
+    ON CONFLICT (id) DO NOTHING;
+
+    -- 3. Chèn vào employees
+    INSERT INTO public.employees (id, role_id, status)
+    VALUES (new_user_id, user_role_id, 'active');
+END;
+$$;
+
+
+ALTER FUNCTION "public"."create_staff"("user_email" "text", "user_password" "text", "user_fullname" "text", "user_phone" "text", "user_gender" "text", "user_role_id" bigint) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-  -- B╞░ß╗¢c A: Ch├¿n th├┤ng tin c╞í bß║ún v├áo bß║úng profiles gß╗æc
+  -- 1. Luôn tạo profile
   INSERT INTO public.profiles (id, email, fullname)
-  VALUES (
-    new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'fullname', new.raw_user_meta_data->>'fullName', 'Kh├ích h├áng mß╗¢i')
-  ) ON CONFLICT (id) DO UPDATE 
-  SET fullname = EXCLUDED.fullname, email = EXCLUDED.email;
-
-  -- B╞░ß╗¢c B: Tß╗▒ ─æß╗Öng li├¬n kß║┐t UUID sang bß║úng customers vß╗¢i trß║íng th├íi hoß║ít ─æß╗Öng mß║╖c ─æß╗ïnh
-  INSERT INTO public.customers (id, status)
-  VALUES (new.id, 'active') 
+  VALUES (new.id, new.email, COALESCE(new.raw_user_meta_data->>'full_name', ''))
   ON CONFLICT (id) DO NOTHING;
-
-  RETURN NEW;
+  
+  -- 2. Luôn tạo customer (vì ai đăng ký cũng là khách hàng)
+  INSERT INTO public.customers (id, status)
+  VALUES (new.id, 'active')
+  ON CONFLICT (id) DO NOTHING;
+  
+  RETURN new;
 END;
 $$;
 
@@ -208,11 +243,13 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "dob" "date",
     "phone" character varying,
     "address" "text",
-    "email" "text" NOT NULL,
+    "email" "text",
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "fullname" "text",
     CONSTRAINT "profiles_gender_check" CHECK (("gender" = ANY (ARRAY['male'::"text", 'female'::"text", 'other'::"text", 'prefer_not_to_say'::"text"])))
 );
+
+ALTER TABLE ONLY "public"."profiles" FORCE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."profiles" OWNER TO "postgres";
@@ -294,7 +331,6 @@ CREATE TABLE IF NOT EXISTS "public"."services" (
     "description" "text",
     "price" integer NOT NULL,
     "duration" smallint,
-    "image_url" "text",
     "status" "text",
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     CONSTRAINT "services_status_check" CHECK (("status" = ANY (ARRAY['active'::"text", 'inactive'::"text"])))
@@ -524,7 +560,35 @@ ALTER TABLE ONLY "public"."services"
 
 
 
-CREATE POLICY "Allow system to insert profiles" ON "public"."profiles" FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert" ON "public"."employees" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
+CREATE POLICY "Allow read employees" ON "public"."employees" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow read profiles" ON "public"."profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow service_role full access" ON "public"."employees" TO "service_role" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "Allow service_role full access" ON "public"."profiles" TO "service_role" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "Allow service_role full access to employees" ON "public"."employees" TO "service_role" USING (true);
+
+
+
+CREATE POLICY "Allow service_role full access to profiles" ON "public"."profiles" TO "service_role" USING (true);
+
+
+
+CREATE POLICY "Allow system to insert profiles" ON "public"."profiles" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
@@ -540,7 +604,27 @@ CREATE POLICY "Cho phep moi nguoi xem danh muc" ON "public"."categories" FOR SEL
 
 
 
-CREATE POLICY "Cho ph├⌐p mß╗ìi ng╞░ß╗¥i xem dß╗ïch vß╗Ñ" ON "public"."services" FOR SELECT TO "authenticated", "anon" USING (true);
+CREATE POLICY "Cho ph├⌐p mß╗ìi ng╞░ß╗¥i xem dß╗ïch vß╗" ON "public"."services" FOR SELECT TO "authenticated", "anon" USING (true);
+
+
+
+CREATE POLICY "Service role full access" ON "public"."customers" TO "service_role" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "Users can manage own profile" ON "public"."profiles" USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can update own profile" ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can view own customer record" ON "public"."customers" FOR SELECT USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can view own profile" ON "public"."profiles" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
 
@@ -563,9 +647,6 @@ ALTER TABLE "public"."employee_categories" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."employees" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."promotion_services" ENABLE ROW LEVEL SECURITY;
@@ -816,7 +897,7 @@ GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employee_categorie
 
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employees" TO "anon";
 GRANT ALL ON TABLE "public"."employees" TO "authenticated";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employees" TO "service_role";
+GRANT ALL ON TABLE "public"."employees" TO "service_role";
 
 
 
