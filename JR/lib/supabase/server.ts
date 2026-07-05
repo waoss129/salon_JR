@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 // 1. Hàm cho người dùng thông thường (Client ANON KEY)
@@ -23,22 +24,9 @@ export async function createClient() {
 }
 
 // 2. Hàm cho Admin/Backend (SERVICE ROLE KEY)
-export async function createAdminClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
+export function createAdminClient() {
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Dùng SERVICE ROLE KEY
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
-        },
-      },
-    },
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Phải là Service Role Key
   );
 }
