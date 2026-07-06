@@ -7,12 +7,15 @@ import UserDropdown from "./UserDropdown";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FaSearch, FaUser } from "react-icons/fa";
+import { SEARCH_SUGGESTIONS } from "../search/searchConfig";
 
 export default function Header() {
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
 
   const handleLogout = async () => {
     //goi ham dang xuat
@@ -65,14 +68,25 @@ export default function Header() {
   const handleServicesClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    //neu dang o trang chu thi cuon ngay
+    // Luôn đẩy về đường dẫn có hash
+    router.push("/#services-section");
+
+    // Nếu đang ở trang chủ, cuộn ngay lập tức
     if (pathname === "/") {
       const element = document.getElementById("services-section");
-      element?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      //neu o trang khac, ve trang chu va them hash vao URL
-      router.push("/#services-section");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
     }
+
+    // //neu dang o trang chu thi cuon ngay
+    // if (pathname === "/") {
+    //   const element = document.getElementById("services-section");
+    //   element?.scrollIntoView({ behavior: "smooth" });
+    // } else {
+    //   //neu o trang khac, ve trang chu va them hash vao URL
+    //   router.push("/#services-section");
+    // }
   };
 
   const handleReturnHome = (e: React.MouseEvent) => {
@@ -81,6 +95,24 @@ export default function Header() {
     window.scrollTo({ top: 0, behavior: "smooth" });
     // 2. Chuyển hướng về trang chủ
     router.push("/");
+  };
+
+  const handleSearch = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && searchTerm.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
+    }
+  };
+  const handleInputChange = (e: string) => {
+    setSearchTerm(e);
+    if (e.length > 0) {
+      //loc theo tu khoa tieng viet hoac tieng anh
+      const filtered = SEARCH_SUGGESTIONS.filter((item) =>
+        item.keywords.some((k) => k.includes(e.toLowerCase())),
+      );
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
   };
 
   return (
@@ -104,10 +136,31 @@ export default function Header() {
         <div className="relative flex items-center">
           <FaSearch className="absolute left-3 text-gray-400 text-sm" />
           <input
-            type="text"
-            placeholder="Tìm dịch vụ..."
+            //type="text"
+            placeholder="Tìm dịch vụ, khuyến mãi..."
+            value={searchTerm}
+            onChange={(e) => handleInputChange(e.target.value)}
+            //onKeyDown={handleSearch} //them su kien nhan enter
             className="w-full bg-gray-100 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
           />
+          {/* Dropdown gợi ý */}
+          {suggestions.length > 0 && (
+            <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+              {suggestions.map((item, idx) => (
+                <Link
+                  key={idx}
+                  href={item.path}
+                  className="block px-4 py-2 text-sm text-stone-600 hover:bg-pink-50 hover:text-pink-600 transition"
+                  onClick={() => {
+                    setSuggestions([]);
+                    setSearchTerm("");
+                  }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

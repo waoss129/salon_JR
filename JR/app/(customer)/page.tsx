@@ -22,15 +22,22 @@ export default function JoyRideHomePage() {
 
   // 1. Logic tự động cuộn khi trang được tải (dành cho trường hợp từ trang khác quay về)
   useEffect(() => {
-    if (window.location.hash === "#services-section") {
-      const element = document.getElementById("services-section");
-      if (element) {
-        // Delay 300ms để đảm bảo mọi thành phần đã được render xong
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: "smooth" });
-        }, 300);
+    const handleScroll = () => {
+      if (window.location.hash === "#services-section") {
+        const element = document.getElementById("services-section");
+        if (element) {
+          // Delay 100ms để đảm bảo mọi thành phần đã được render xong
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+        }
       }
-    }
+    };
+    //chay khi component mount
+    handleScroll();
+    //lang nghe su kien thay doi hash (vd nguoi dung click lai vao menu)
+    window.addEventListener("hashchange", handleScroll);
+    return () => window.removeEventListener("hashchange", handleScroll);
   }, []);
 
   // Hàm điều hướng khi click vào dịch vụ

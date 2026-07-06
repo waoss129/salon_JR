@@ -125,9 +125,9 @@ export default function ProfilePage() {
         alert("Đã lưu thông tin thay đổi thành công!");
 
         // Ép Next.js làm mới lại router để cập nhật tên lên Dropdown ngay lập tức
-        //router.refresh();
+        router.refresh();
         // Làm mới lại toàn bộ trang để thanh Header bắt được Session mới
-        window.location.reload();
+        //window.location.reload();
       }
     } catch (catchError: any) {
       console.error("Lỗi hệ thống ngoài dự kiến:", catchError);
