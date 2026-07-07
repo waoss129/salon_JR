@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS "public"."bill_services" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "subtotal" integer GENERATED ALWAYS AS (("quantity" * "price_at_time")) STORED,
+    "subtotal" integer GENERATED ALWAYS AS (("quantity" * "price_at_time")) STORED NOT NULL,
     CONSTRAINT "bill_services_quantity_check" CHECK (("quantity" > 0))
 );
 
@@ -210,9 +210,6 @@ ALTER TABLE "public"."details" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."employee_categories" (
     "category_id" bigint NOT NULL,
     "employee_id" "uuid" NOT NULL,
-    "certificate_name" "text",
-    "level" "text",
-    "issued_date" "date",
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"()
@@ -228,7 +225,10 @@ CREATE TABLE IF NOT EXISTS "public"."employees" (
     "role_id" bigint NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "status" "text",
-    CONSTRAINT "employees_status_check" CHECK (("status" = ANY (ARRAY['active'::"text", 'on_leave'::"text", 'inactive'::"text"])))
+    "certificate_name" "text",
+    "level" "text",
+    "joined_at" "date",
+    CONSTRAINT "employees_status_check" CHECK (("status" = ANY (ARRAY['active'::"text", 'on_leave'::"text", 'inactive'::"text", 'terminated'::"text"])))
 );
 
 
@@ -496,12 +496,22 @@ ALTER TABLE ONLY "public"."bill_services"
 
 
 ALTER TABLE ONLY "public"."bills"
+    ADD CONSTRAINT "bills_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id");
+
+
+
+ALTER TABLE ONLY "public"."bills"
     ADD CONSTRAINT "bills_promotion_id_fkey" FOREIGN KEY ("promotion_id") REFERENCES "public"."promotions"("id");
 
 
 
 ALTER TABLE ONLY "public"."customers"
     ADD CONSTRAINT "customers_id_fkey" FOREIGN KEY ("id") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."details"
+    ADD CONSTRAINT "details_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id");
 
 
 
@@ -521,7 +531,7 @@ ALTER TABLE ONLY "public"."employee_categories"
 
 
 ALTER TABLE ONLY "public"."employees"
-    ADD CONSTRAINT "employees_id_fkey" FOREIGN KEY ("id") REFERENCES "public"."profiles"("id");
+    ADD CONSTRAINT "employees_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -530,8 +540,13 @@ ALTER TABLE ONLY "public"."employees"
 
 
 
+ALTER TABLE ONLY "public"."employees"
+    ADD CONSTRAINT "fk_employees_profiles" FOREIGN KEY ("id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."profiles"
-    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -560,7 +575,27 @@ ALTER TABLE ONLY "public"."services"
 
 
 
+CREATE POLICY "Allow all updates for admin" ON "public"."profiles" FOR UPDATE TO "authenticated" USING (true);
+
+
+
 CREATE POLICY "Allow authenticated insert" ON "public"."employees" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
+CREATE POLICY "Allow public select" ON "public"."categories" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow public select" ON "public"."employee_categories" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow public select" ON "public"."employees" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow public select" ON "public"."profiles" FOR SELECT USING (true);
 
 
 
@@ -604,7 +639,35 @@ CREATE POLICY "Cho phep moi nguoi xem danh muc" ON "public"."categories" FOR SEL
 
 
 
+CREATE POLICY "Cho phép mọi người xem danh sách nhân viên" ON "public"."employees" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Cho phép mọi người xem danh sách nhân viên" ON "public"."profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Cho phép public xem danh mục nhân viên" ON "public"."employee_categories" FOR SELECT USING (true);
+
+
+
 CREATE POLICY "Cho ph├⌐p mß╗ìi ng╞░ß╗¥i xem dß╗ïch vß╗" ON "public"."services" FOR SELECT TO "authenticated", "anon" USING (true);
+
+
+
+CREATE POLICY "Public select" ON "public"."categories" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public select" ON "public"."employee_categories" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public select" ON "public"."employees" FOR SELECT TO "anon" USING (true);
+
+
+
+CREATE POLICY "Public select" ON "public"."profiles" FOR SELECT USING (true);
 
 
 
@@ -641,9 +704,6 @@ ALTER TABLE "public"."customers" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."details" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."employee_categories" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."employees" ENABLE ROW LEVEL SECURITY;
@@ -889,13 +949,13 @@ GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."details" TO "servi
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employee_categories" TO "anon";
+GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employee_categories" TO "anon";
 GRANT ALL ON TABLE "public"."employee_categories" TO "authenticated";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employee_categories" TO "service_role";
+GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employee_categories" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employees" TO "anon";
+GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."employees" TO "anon";
 GRANT ALL ON TABLE "public"."employees" TO "authenticated";
 GRANT ALL ON TABLE "public"."employees" TO "service_role";
 

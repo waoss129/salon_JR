@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 export async function addStaff(formData: FormData, roleId: number) {
   const supabase = await createAdminClient();
 
-  const email = formData.get("email") as string;
+  const email = (formData.get("email") as string)?.trim();
+  console.log("DEBUG EMAIL NHẬN ĐƯỢC:", email);
+  if (!email || !email.includes("@")) {
+    throw new Error("Email không hợp lệ hoặc bị thiếu!");
+  }
   const fullname = formData.get("fullname") as string;
   const gender = formData.get("gender") as string;
   const phone = formData.get("phone") as string;
@@ -37,13 +41,53 @@ export async function updateStaff(id: string, formData: FormData) {
   const supabase = await createAdminClient();
   const cleanData = (val: any) => (val === "" ? null : val);
 
+  const newEmail = formData.get("email") as string;
+  // 1. Lấy dữ liệu cũ để so sánh email
+  const { data: oldData } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", id)
+    .single();
+
+  // 2. Xử lý Email
+
+  if (oldData && newEmail !== oldData.email) {
+    // Cập nhật email trong bảng auth.users
+    // const { data: updatedUser, error: emailError } =
+    //   await supabase.auth.admin.updateUserById(id, {
+    //     email: newEmail,
+    //   });
+
+    //su dung service_role key de co quyen admin
+    const { error: emailError } = await supabase.auth.admin.updateUserById(id, {
+      email: newEmail,
+    });
+    if (emailError) {
+      // SỬA Ở ĐÂY: Ghi log chi tiết và hiển thị thông báo lỗi đầy đủ
+      console.error("CHI TIẾT LỖI AUTH:", JSON.stringify(emailError, null, 2));
+      throw new Error(
+        `Lỗi đổi Email: ${emailError.message || JSON.stringify(emailError)}`,
+      );
+    }
+
+    // CẬP NHẬT THÊM: Đồng bộ email sang bảng profiles
+    await supabase.from("profiles").update({ email: newEmail }).eq("id", id);
+  }
+
+  const genderInput = formData.get("gender") as string;
+  const genderValue = cleanData(genderInput);
+  //let genderValue = null;
+
+  // if (genderInput === "Nam") genderValue = "male";
+  // else if (genderInput === "Nữ") genderValue = "female";
+  // Nếu muốn thêm other/prefer_not_to_say thì thêm ở đây
   // 1. Cập nhật Profile
   // SỬA: Đảm bảo gán đúng tên biến error từ Supabase
   const { error: profError } = await supabase
     .from("profiles")
     .update({
       fullname: cleanData(formData.get("fullname")),
-      gender: cleanData(formData.get("gender")),
+      gender: genderValue, //dung bien da chuyen doi
       phone: cleanData(formData.get("phone")),
       dob: cleanData(formData.get("dob")),
       address: cleanData(formData.get("address")),
@@ -51,10 +95,8 @@ export async function updateStaff(id: string, formData: FormData) {
     .eq("id", id);
 
   if (profError) {
-    console.error("LỖI UPDATE PROFILES:", profError);
-    throw new Error("Không thể cập nhật thông tin cá nhân");
+    throw new Error(`Không thể cập nhật: ${profError.message}`);
   }
-
   // 2. Cập nhật Employee
   const { error: empError } = await supabase
     .from("employees")
@@ -70,8 +112,10 @@ export async function updateStaff(id: string, formData: FormData) {
     throw new Error("Không thể cập nhật thông tin cá nhân");
   }
 
-  // Refresh lại trang để thấy thay đổi
+  // Đảm bảo bạn đang revalidate chính xác trang mà bạn đang đứng
   revalidatePath(`/admin/staff/details/${id}`);
+  // Nếu trang danh sách nhân viên cũng bị cache, hãy thêm:
+  revalidatePath("/admin/staff");
 }
 export async function updateStaffStatus(id: string, status: string) {
   const supabase = await createAdminClient();

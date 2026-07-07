@@ -1,3 +1,4 @@
+export const dynaminc = "force-dynamic"; //ep trang lay du lieu moi tu server
 import { createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import StaffDetailForm from "@/components/admin/StaffDetailForm";
@@ -11,18 +12,17 @@ export default async function StaffDetailPage({
   const supabase = await createAdminClient();
 
   // Truy vấn join thông tin nhân viên, profiles và categories
-  // Thay thế đoạn query hiện tại bằng đoạn này
   const { data: staff, error } = await supabase
     .from("employees")
     .select(
       `
     *,
-    profiles (fullname, email, phone, gender, avatar),
+    profiles (fullname, email, gender, phone, dob, address, avatar),
     employee_categories!left (*) 
   `,
     )
     .eq("id", id)
-    .maybeSingle(); // Dùng maybeSingle thay vì single để tránh lỗi 0 rows
+    .single(); // Dùng maybeSingle thay vì single để tránh lỗi 0 rows
 
   // Thay vì throw new Error(...)
   if (error) {

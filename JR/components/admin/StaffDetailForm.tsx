@@ -8,36 +8,72 @@ export default function StaffDetailForm({ data }: { data: any }) {
 
   return (
     <form
-      key={JSON.stringify(data)}
       action={(formData) =>
         startTransition(() => updateStaff(data.id, formData))
       }
-      className="space-y-8 bg-white p-8 rounded shadow"
+      className="space-y-6 bg-white p-8 rounded shadow"
     >
-      <div className="grid grid-cols-2 gap-6">
-        {/* Thông tin cá nhân */}
-        <div className="col-span-2 mb-4">
-          <img
-            src={data.profiles?.avatar || "/default-avatar.png"}
-            className="w-24 h-24 rounded-full border mb-2"
-            alt="Avatar"
+      {/* Avatar Upload */}
+      <div className="flex items-center gap-4 mb-6">
+        <img
+          src={data.profiles?.avatar || "/default-avatar.png"}
+          className="w-24 h-24 rounded-full border object-cover"
+          alt="Avatar"
+        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Thay đổi ảnh đại diện
+          </label>
+          <input
+            type="file"
+            name="avatar"
+            accept="image/*"
+            className="text-sm mt-1"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* Thông tin cá nhân */}
         <div className="col-span-2 text-lg font-bold border-b pb-2">
           Thông tin cá nhân
         </div>
+
         <input
           name="fullname"
-          defaultValue={data.profiles?.fullname || ""}
+          defaultValue={data.profiles?.fullname}
           placeholder="Họ và tên"
           className="border p-2 rounded w-full"
         />
         <input
           name="email"
-          defaultValue={data.profiles?.email || ""}
-          disabled
-          className="border p-2 rounded bg-gray-50 w-full"
+          defaultValue={data.profiles?.email} //xoa thuoc tinh disable thi moi sua duoc
+          placeholder="Email"
+          className="border p-2 rounded bg-gray-100 w-full"
         />
+
+        <div className="flex items-center gap-4 border p-2 rounded">
+          <span className="text-gray-500 text-sm">Giới tính:</span>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="gender"
+              value="male"
+              defaultChecked={data.profiles?.gender === "male"}
+            />{" "}
+            Nam
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="gender"
+              value="female"
+              defaultChecked={data.profiles?.gender === "female"}
+            />{" "}
+            Nữ
+          </label>
+        </div>
+
         <input
           type="date"
           name="dob"
@@ -46,13 +82,13 @@ export default function StaffDetailForm({ data }: { data: any }) {
         />
         <input
           name="phone"
-          defaultValue={data.profiles?.phone || ""}
+          defaultValue={data.profiles?.phone}
           placeholder="Số điện thoại"
-          className="border p-2 rounded w-full"
+          className="border p-2 rounded"
         />
         <input
           name="address"
-          defaultValue={data.profiles?.address || ""}
+          defaultValue={data.profiles?.address}
           placeholder="Địa chỉ"
           className="border p-2 rounded col-span-2 w-full"
         />

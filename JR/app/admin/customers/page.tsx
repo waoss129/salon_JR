@@ -1,52 +1,26 @@
-"use client";
-import { useState } from "react";
-import { addCustomer } from "@/app/admin/customers/actions";
+import { createAdminClient } from "@/lib/supabase/server";
+import CustomerList from "@/components/admin/CustomerList";
+import CustomerModal from "@/components/admin/CustomerModal";
 
-export default function CustomerModal() {
-  const [isOpen, setIsOpen] = useState(false);
+export default async function CustomersPage() {
+  const supabase = await createAdminClient();
+
+  // Truy vấn dữ liệu tại đây (Server Side)
+  const { data: customers } = await supabase.from("customers").select(`
+      id,
+      status,
+      profiles ( fullname, phone, email )
+    `);
 
   return (
-    <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="bg-blue-600 text-white p-2 rounded"
-      >
-        + THÊM KHÁCH HÀNG
-      </button>
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <form
-            action={async (formData) => {
-              await addCustomer(formData);
-              setIsOpen(false);
-            }}
-            className="bg-white p-6 rounded shadow-lg w-96 space-y-3"
-          >
-            <h2 className="text-lg font-bold">Thêm khách hàng mới</h2>
-            <input
-              name="fullname"
-              placeholder="Họ và tên"
-              className="border p-2 w-full"
-              required
-            />
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              className="border p-2 w-full"
-              required
-            />
-            <input
-              name="phone"
-              placeholder="Số điện thoại"
-              className="border p-2 w-full"
-            />
-            <button type="submit" className="bg-blue-600 text-white p-2 w-full">
-              Lưu
-            </button>
-          </form>
-        </div>
-      )}
-    </>
+    <div className="p-6">
+      <div className="flex justify-between mb-6">
+        <h1 className="text-2xl font-bold">Quản lý khách hàng</h1>
+        <CustomerModal /> {/* Nút Thêm khách hàng */}
+      </div>
+
+      {/* Truyền dữ liệu đã lấy được vào List */}
+      <CustomerList customers={customers || []} />
+    </div>
   );
 }

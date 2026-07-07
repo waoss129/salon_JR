@@ -27,7 +27,7 @@ export default async function RolePage({
   const ids = employees?.map((e) => e.id) || [];
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, fullname, phone, gender, avatar") // Thêm các trường cần thiết
+    .select("id, fullname, email, phone, gender, avatar") // Thêm các trường cần thiết
     .in("id", ids);
 
   const staffList =
