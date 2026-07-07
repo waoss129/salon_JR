@@ -1,13 +1,25 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import CustomerModal from "./CustomerModal"; // Import modal sửa/thêm của bạn
+import {
+  updateCustomerStatus,
+  deleteCustomer,
+} from "@/app/admin/customers/actions";
 
 export default function CustomerList({ customers }: { customers: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const filteredCustomers = customers.filter((c) =>
     c.profiles?.fullname?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    setLoadingId(id);
+    await updateCustomerStatus(id, newStatus);
+    setLoadingId(null);
+  };
 
   return (
     <div className="w-full">
@@ -25,6 +37,7 @@ export default function CustomerList({ customers }: { customers: any[] }) {
             <th className="p-3 border">SĐT</th>
             <th className="p-3 border">Giới tính</th>
             <th className="p-3 border">Email</th>
+            <th className="p-3 border">Trạng thái</th>
             <th className="p-3 border">Hành động</th>
           </tr>
         </thead>
@@ -37,9 +50,36 @@ export default function CustomerList({ customers }: { customers: any[] }) {
               <td className="p-3 border">{c.profiles?.phone || "-"}</td>
               <td className="p-3 border">{c.profiles?.gender || "-"}</td>
               <td className="p-3 border">{c.profiles?.email || "-"}</td>
-              <td className="p-3 border">
-                {/* Truyền dữ liệu customer hiện tại vào modal để sửa */}
-                <CustomerModal customerData={c} />
+              <td className="p-2 border">
+                <select
+                  defaultValue={c.status}
+                  disabled={loadingId === c.id}
+                  onChange={(e) => handleStatusChange(c.id, e.target.value)} // Dùng c.id (đúng)
+                  className="border p-1 rounded"
+                >
+                  <option value="active">Đang hoạt động</option>
+                  <option value="inactive">Tạm ngưng</option>
+                  <option value="banned">Đã khóa</option>
+                </select>
+              </td>
+
+              <td className="p-3 border flex gap-2">
+                <Link
+                  href={`/admin/customers/${c.id}`} // Đảm bảo c.id này khớp với ID trong bảng customers
+                  className="text-blue-600 hover:underline"
+                >
+                  XEM
+                </Link>
+                <button
+                  onClick={async () => {
+                    if (confirm("Bạn có chắc chắn muốn xóa?")) {
+                      await deleteCustomer(c.id);
+                    }
+                  }}
+                  className="text-red-600 hover:underline"
+                >
+                  XÓA
+                </button>
               </td>
             </tr>
           ))}

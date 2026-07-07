@@ -96,7 +96,7 @@ export default function StaffListClient({
                     onClick={() => handleDelete(staff.id)}
                     className="text-red-600 hover:underline ml-2"
                   >
-                    Xóa
+                    XÓA
                   </button>
                 </td>
               </tr>

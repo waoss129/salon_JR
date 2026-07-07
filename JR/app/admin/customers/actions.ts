@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache";
 export async function addCustomer(formData: FormData) {
   const supabase = await createAdminClient();
 
-  const email = (formData.get("email") as string).trim();
-  const fullname = (formData.get("fullname") as string).trim();
-  const phone = (formData.get("phone") as string).trim();
-  const gender = (formData.get("gender") as string).trim();
+  const email = ((formData.get("email") as string) || "").trim();
+  const fullname = ((formData.get("fullname") as string) || "").trim();
+  const phone = ((formData.get("phone") as string) || "").trim();
+  const genderRaw = formData.get("gender");
+  const gender = genderRaw ? (genderRaw as string).trim() : null;
 
   // 1. Tạo User trong Auth
   const { data: authData, error: authError } =
@@ -21,30 +22,59 @@ export async function addCustomer(formData: FormData) {
 
   if (authError) throw authError;
 
-  // 2. Cập nhật Profile (đã có Trigger, nhưng update thêm phone để đảm bảo)
-  await supabase
-    .from("profiles")
-    .update({ fullname, phone, gender })
-    .eq("id", authData.user.id);
-  await supabase
-    .from("customers")
-    .upsert({ id: authData.user.id, status: "active" });
-  revalidatePath("/admin/customers");
-
-  // 3. Đảm bảo bản ghi trong bảng customers được tạo
-  const { error: custError } = await supabase.from("customers").upsert({
+  // 2. Update Profile: Dùng .upsert thay vì .update để đảm bảo nếu trigger
+  // chưa kịp tạo profile thì lệnh này vẫn hoạt động mà không bị lỗi
+  const { error: profileError } = await supabase.from("profiles").upsert({
     id: authData.user.id,
-    status: "active",
+    fullname,
+    phone,
+    gender,
   });
 
+  if (profileError) throw profileError;
+
+  // 3. Đảm bảo bảng customers có bản ghi
+  const { error: custError } = await supabase
+    .from("customers")
+    .upsert({ id: authData.user.id, status: "active" });
+
   if (custError) throw custError;
+
+  revalidatePath("/admin/customers");
 }
 export async function updateCustomer(id: string, formData: FormData) {
   const supabase = await createAdminClient();
-  const fullname = formData.get("fullname") as string;
-  const phone = formData.get("phone") as string;
-  const gender = formData.get("gender") as string;
+  const fullname = ((formData.get("fullname") as string) || "").trim();
+  const phone = ((formData.get("phone") as string) || "").trim();
+  const gender = ((formData.get("gender") as string) || "").trim();
 
-  await supabase.from("profiles").update({ fullname, phone }).eq("id", id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ fullname, phone, gender })
+    .eq("id", id);
+
+  if (error) throw error;
+
+  revalidatePath("/admin/customers");
+}
+export async function updateCustomerStatus(id: string, status: string) {
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from("customers")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw error;
+
+  revalidatePath("/admin/customers");
+}
+export async function deleteCustomer(id: string) {
+  const supabase = await createAdminClient();
+
+  // Xóa bản ghi trong bảng customers
+  const { error } = await supabase.from("customers").delete().eq("id", id);
+  if (error) throw error;
+
   revalidatePath("/admin/customers");
 }

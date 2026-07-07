@@ -14,13 +14,9 @@ export default function CustomerModal({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className={
-          isEdit
-            ? "text-blue-600 hover:underline"
-            : "bg-blue-600 text-white p-2 rounded"
-        }
+        className="bg-blue-600 text-white p-2 rounded"
       >
-        {isEdit ? "Sửa" : "+ THÊM KHÁCH HÀNG"}
+        + THÊM KHÁCH HÀNG
       </button>
 
       {isOpen && (
