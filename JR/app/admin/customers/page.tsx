@@ -23,8 +23,8 @@ export default async function CustomersPage() {
     console.error("Lỗi supabase chi tiết:", JSON.stringify(error, null, 2));
     return <div>Không thể tải dữ liệu khách hàng.</div>;
   }
-// Trong page.tsx
-console.log("Dữ liệu khách hàng:", JSON.stringify(customers, null, 2));
+  // Trong page.tsx
+  console.log("Dữ liệu khách hàng:", JSON.stringify(customers, null, 2));
   return (
     <div className="p-6">
       <div className="flex justify-between mb-6">

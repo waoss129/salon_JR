@@ -29,6 +29,7 @@ export async function addCustomer(formData: FormData) {
     fullname,
     phone,
     gender,
+    email,
   });
 
   if (profileError) throw profileError;
@@ -44,18 +45,25 @@ export async function addCustomer(formData: FormData) {
 }
 export async function updateCustomer(id: string, formData: FormData) {
   const supabase = await createAdminClient();
-  const fullname = ((formData.get("fullname") as string) || "").trim();
-  const phone = ((formData.get("phone") as string) || "").trim();
-  const gender = ((formData.get("gender") as string) || "").trim();
+
+  // ÉP DỮ LIỆU TỪ FORM - Đảm bảo tên 'name' trong input khớp với đây
+  const updateData = {
+    fullname: formData.get("fullname") as string,
+    phone: formData.get("phone") as string,
+    gender: formData.get("gender") as string,
+    address: formData.get("address") as string,
+    dob: (formData.get("dob") as string) || null,
+  };
+
+  console.log("Dữ liệu đang gửi đi:", updateData); // Kiểm tra log này trong Terminal
 
   const { error } = await supabase
     .from("profiles")
-    .update({ fullname, phone, gender })
+    .update(updateData)
     .eq("id", id);
 
   if (error) throw error;
-
-  revalidatePath("/admin/customers");
+  revalidatePath(`/admin/customers/${id}`);
 }
 export async function updateCustomerStatus(id: string, status: string) {
   const supabase = await createAdminClient();

@@ -58,6 +58,8 @@ export default function CustomerModal({
             >
               <option value="male">Nam</option>
               <option value="female">Nữ</option>
+              <option value="other">Khác</option>
+              <option value="prefer_not_to_say">Không muốn trả lời</option>
             </select>
 
             <input
