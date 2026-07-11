@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { loginAction, type LoginState } from "./actions";
+import Link from "next/link";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -67,12 +68,12 @@ export default function LoginPage() {
               <label className="text-sm font-bold text-slate-700">
                 Mật khẩu
               </label>
-              <a
-                href="#forgot-password"
+              <Link
+                href="/admin/forgot-password"
                 className="text-xs font-bold text-blue-600 hover:underline transition"
               >
                 Quên mật khẩu?
-              </a>
+              </Link>
             </div>
             <input
               type="password"
