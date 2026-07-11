@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,8 @@ export default function ProfilePage() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  // Lưu trữ dữ liệu gốc để so sánh
+  const [originalProfile, setOriginalProfile] = useState<any>({});
   const [profile, setProfile] = useState({
     fullname: "",
     phone: "",
@@ -20,28 +22,55 @@ export default function ProfilePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-      const { data } = await supabase
-        .from("profiles")
-        .select("fullname, phone, address, gender, dob, avatar") // Chỉ chọn các trường cần thiết, bỏ created_at, email
-        .eq("id", user.id)
-        .single();
-      if (data) {
-        setProfile(data);
-        setPreviewUrl(data.avatar);
-      }
-      setLoading(false);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/Login");
+      return;
     }
+    const { data } = await supabase
+      .from("profiles")
+      .select("fullname, phone, address, gender, dob, avatar")
+      .eq("id", user.id)
+      .single();
+
+    if (data) {
+      setProfile(data);
+      setOriginalProfile(data); //luu ban goc
+      setPreviewUrl(data.avatar);
+    }
+    setLoading(false);
+  }, [supabase, router]); //dependency cua useCallback
+
+  // useEffect(() => {
+  //   async function loadData() {
+  //     const {
+  //       data: { user },
+  //     } = await supabase.auth.getUser();
+  //     if (!user) {
+  //       router.push("/login");
+  //       return;
+  //     }
+  //     const { data } = await supabase
+  //       .from("profiles")
+  //       .select("fullname, phone, address, gender, dob, avatar") // Chỉ chọn các trường cần thiết, bỏ created_at, email
+  //       .eq("id", user.id)
+  //       .single();
+  //     if (data) {
+  //       setProfile(data);
+  //       setPreviewUrl(data.avatar);
+  //     }
+  //     setLoading(false);
+  //   }
+  //   loadData();
+  // }, []);
+
+  useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,79 +94,64 @@ export default function ProfilePage() {
         return;
       }
 
+      // 1. Chỉ tìm các trường đã thay đổi
+      const changedData: any = {};
+      Object.keys(profile).forEach((key) => {
+        if (profile[key as keyof typeof profile] !== originalProfile[key]) {
+          changedData[key] = profile[key as keyof typeof profile];
+        }
+      });
+
       let avatarUrl = profile.avatar;
 
-      // 2. XỬ LÝ UPLOAD ẢNH (Nếu có chọn file mới)
+      // 2. Upload ảnh nếu có thay đổi
       if (selectedFile) {
         const fileName = `${user.id}_${Date.now()}.png`;
-
-        // Thực hiện upload và bắt lỗi riêng biệt cho Storage
         const { error: uploadError } = await supabase.storage
           .from("avatars")
           .upload(fileName, selectedFile, { upsert: true });
 
-        if (uploadError) {
-          console.error("Lỗi Storage Upload:", uploadError);
-          alert(
-            `Không thể tải ảnh lên: ${uploadError.message}. Hệ thống sẽ tiếp tục lưu các thông tin khác.`,
-          );
-        } else {
-          // Lấy URL công khai nếu upload thành công
+        if (!uploadError) {
           const { data } = supabase.storage
             .from("avatars")
             .getPublicUrl(fileName);
           avatarUrl = data.publicUrl;
+          changedData.avatar = avatarUrl;
         }
       }
 
-      // 3. XỬ LÝ CẬP NHẬT THÔNG TIN CHỮ VÀO DATABASE
-      const updateData: any = {
-        fullname: profile.fullname || null,
-        phone: profile.phone || null,
-        address: profile.address || null,
-        gender: profile.gender || null,
-        dob: profile.dob || null,
-        avatar: avatarUrl,
-        updated_at: new Date().toISOString(), // Đảm bảo cập nhật mốc thời gian mới
-      };
+      // 3. Nếu không có gì thay đổi và không có ảnh mới, không làm gì cả
+      if (Object.keys(changedData).length === 0) {
+        alert("Không có thông tin nào thay đổi!");
+        setLoading(false);
+        return;
+      }
 
-      console.log("Dữ liệu chuẩn bị gửi lên Database:", updateData);
-
+      // 4. Cập nhật Database
       const { error: dbError } = await supabase
         .from("profiles")
-        .update(updateData)
+        .update(changedData)
         .eq("id", user.id);
 
-      if (dbError) {
-        console.error("Lỗi Database Update:", dbError);
-        alert(`Lỗi lưu thông tin: ${dbError.message}`);
-      } else {
-        // 🔥 BỔ SUNG ĐOẠN NÀY: Đồng bộ lại cả tên mới vào Session Auth của hệ thống
-        await supabase.auth.updateUser({
-          data: {
-            fullname: profile.fullname,
-            fullName: profile.fullname, // Đề phòng cả 2 kiểu viết hoa viết thường
-          },
-        });
-        // Đồng bộ lại state hiển thị của giao diện
-        setProfile((prev) => ({ ...prev, avatar: avatarUrl }));
-        setSelectedFile(null);
-        alert("Đã lưu thông tin thay đổi thành công!");
+      if (dbError) throw dbError;
 
-        // Ép Next.js làm mới lại router để cập nhật tên lên Dropdown ngay lập tức
-        router.refresh();
-        // Làm mới lại toàn bộ trang để thanh Header bắt được Session mới
-        //window.location.reload();
+      // Đồng bộ Auth
+      if (changedData.fullname) {
+        await supabase.auth.updateUser({
+          data: { fullname: changedData.fullname },
+        });
       }
-    } catch (catchError: any) {
-      console.error("Lỗi hệ thống ngoài dự kiến:", catchError);
-      alert(`Đã xảy ra lỗi hệ thống: ${catchError.message || catchError}`);
+
+      await loadData(); // Tải lại dữ liệu mới từ DB
+      setSelectedFile(null);
+      alert("Đã lưu thay đổi thành công!");
+      router.refresh();
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
-
-  if (loading) return <div>Đang tải...</div>;
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-stone-100">

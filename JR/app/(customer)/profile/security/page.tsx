@@ -10,70 +10,59 @@ export default function SecurityPage() {
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleUpdateAccount = async () => {
+  // 1. Hàm cập nhật Email
+  const handleUpdateEmail = async () => {
+    if (!email) return alert("Vui lòng nhập email mới");
     setLoading(true);
+    const { error } = await supabase.auth.updateUser({ email: email });
+    if (error) alert("Lỗi cập nhật email: " + error.message);
+    else
+      alert("Đã gửi yêu cầu đổi email! Vui lòng kiểm tra hộp thư cũ và mới.");
+    setLoading(false);
+  };
 
-    // Cập nhật Email hoặc Password (có thể thực hiện đồng thời hoặc tách riêng)
+  // 2. Hàm cập nhật Mật khẩu
+  const handleUpdatePassword = async () => {
+    if (newPassword.length < 6) {
+      alert("Mật khẩu phải có ít nhất 6 ký tự!");
+      return;
+    }
+
+    setLoading(true);
+    // Hàm này trực tiếp thay đổi mật khẩu của user đang đăng nhập
     const { error } = await supabase.auth.updateUser({
-      email: email || undefined,
-      password: newPassword || undefined,
+      password: newPassword,
     });
 
     if (error) {
       alert("Lỗi: " + error.message);
     } else {
-      alert(
-        "Đã gửi yêu cầu cập nhật! Vui lòng kiểm tra email của bạn nếu bạn đã đổi email.",
-      );
-      setEmail("");
-      setNewPassword("");
+      alert("Đổi mật khẩu thành công!");
+      setNewPassword(""); // Xóa trắng ô input sau khi xong
     }
     setLoading(false);
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-stone-100">
-      <h2 className="text-2xl font-bold text-stone-800 mb-6">
-        Tài khoản & Bảo mật
-      </h2>
-
-      <div className="space-y-6">
-        {/* Email */}
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-stone-500 uppercase">
-            Email đăng nhập
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="example@gmail.com"
-          />
-        </div>
-
-        {/* Password */}
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-stone-500 uppercase">
-            Mật khẩu mới
-          </label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-3 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
-        </div>
-
-        <button
-          onClick={handleUpdateAccount}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all disabled:opacity-50"
-        >
-          {loading ? "Đang xử lý..." : "Lưu thay đổi bảo mật"}
-        </button>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-stone-700">Mật khẩu mới</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Nhập mật khẩu mới..."
+          className="w-full p-3 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
+
+      <button
+        onClick={handleUpdatePassword}
+        disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50"
+      >
+        {loading ? "Đang xử lý..." : "Cập nhật mật khẩu"}
+      </button>
     </div>
   );
 }

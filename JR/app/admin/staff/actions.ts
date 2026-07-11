@@ -43,6 +43,25 @@ export async function addStaff(formData: FormData, roleId: number) {
 export async function updateStaff(id: string, formData: FormData) {
   const supabase = await createAdminClient();
 
+  //lay file tu FormData
+  const file = formData.get("avatar") as File | null;
+  let avatarUrl = null;
+
+  //kiem tra file hop le: file phai la instance cua File va co size > 0
+  if (file && file instanceof File && file.size > 0) {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${id}-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(fileName, file, { upsert: true });
+
+    if (uploadError) throw new Error(`Lỗi upload ảnh: ${uploadError.message}`);
+
+    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+    avatarUrl = data.publicUrl;
+  }
+
   const newEmail = formData.get("email") as string;
 
   // 1. Lấy dữ liệu cũ
@@ -64,15 +83,22 @@ export async function updateStaff(id: string, formData: FormData) {
   }
 
   // 3. Cập nhật Profile
+  const profileUpdates: any = {
+    fullname: cleanData(formData.get("fullname")),
+    gender: cleanData(formData.get("gender")),
+    phone: cleanData(formData.get("phone")),
+    dob: cleanData(formData.get("dob")),
+    address: cleanData(formData.get("address")),
+  };
+
+  // Chỉ cập nhật avatar vào DB nếu có ảnh mới được upload
+  if (avatarUrl) {
+    profileUpdates.avatar = avatarUrl;
+  }
+
   const { error: profError } = await supabase
     .from("profiles")
-    .update({
-      fullname: cleanData(formData.get("fullname")),
-      gender: cleanData(formData.get("gender")),
-      phone: cleanData(formData.get("phone")),
-      dob: cleanData(formData.get("dob")),
-      address: cleanData(formData.get("address")),
-    })
+    .update(profileUpdates)
     .eq("id", id);
 
   if (profError)

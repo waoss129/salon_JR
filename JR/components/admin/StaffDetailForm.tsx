@@ -11,6 +11,7 @@ export default function StaffDetailForm({ data }: { data: any }) {
       action={(formData) =>
         startTransition(() => updateStaff(data.id, formData))
       }
+      //encType="multipart/form-data" //them dong nay de gui file
       className="space-y-6 bg-white p-8 rounded shadow"
     >
       {/* Avatar Upload */}
@@ -106,13 +107,13 @@ export default function StaffDetailForm({ data }: { data: any }) {
         <input
           name="certificate_name"
           defaultValue={data.certificate_name}
-          placeholder="Tên chứng chỉ"
+          placeholder="Chứng nhận"
           className="border p-2 rounded"
         />
         <input
           name="level"
           defaultValue={data.level}
-          placeholder="Trình độ"
+          placeholder="Cấp bậc"
           className="border p-2 rounded"
         />
       </div>
