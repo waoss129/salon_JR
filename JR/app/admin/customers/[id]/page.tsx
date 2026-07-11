@@ -13,7 +13,9 @@ export default async function CustomerDetailPage({
   // Lấy dữ liệu profile từ database
   const { data: customer } = await supabase
     .from("customers")
-    .select(`id, status, profiles(fullname, phone, gender, dob, address)`)
+    .select(
+      `id, status, profiles(fullname, phone, gender, dob, address, avatar)`,
+    )
     .eq("id", id)
     .single();
 

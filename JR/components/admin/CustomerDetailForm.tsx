@@ -1,5 +1,13 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
+
+const AVATAR_ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+const AVATAR_MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 // components/admin/CustomerForm.tsx
 export default function CustomerForm({
@@ -10,11 +18,56 @@ export default function CustomerForm({
   action: (formData: FormData) => void;
 }) {
   console.log("Dữ liệu nhận vào Form:", initialData);
+
+  // Xem trước ảnh đại diện ngay khi chọn file, trước khi submit lên server
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    initialData.profiles?.avatar || null,
+  );
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
+      setAvatarError("Ảnh đại diện phải là định dạng JPG, PNG, WEBP hoặc GIF.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > AVATAR_MAX_SIZE) {
+      setAvatarError("Ảnh đại diện không được vượt quá 5MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setAvatarError(null);
+    setAvatarPreview(URL.createObjectURL(file));
+  }
+
   return (
     <form
       action={action}
       className="bg-white p-6 rounded shadow border space-y-4"
     >
+      {/* Thêm phần Avatar Upload */}
+      <div className="flex items-center gap-4 mb-4">
+        <img
+          src={avatarPreview || "/default-avatar.png"}
+          className="w-20 h-20 rounded-full border object-cover"
+          alt="Avatar"
+        />
+        <div>
+          <input
+            type="file"
+            name="avatar"
+            accept="image/*"
+            onChange={handleAvatarChange}
+          />
+          {avatarError && (
+            <p className="text-sm text-red-600 mt-1">{avatarError}</p>
+          )}
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label>Họ tên:</label>

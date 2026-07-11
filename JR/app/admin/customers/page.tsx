@@ -13,7 +13,8 @@ export default async function CustomersPage() {
       fullname,
       phone,
       email,
-      gender
+      gender,
+      avatar
     )
   `);
 

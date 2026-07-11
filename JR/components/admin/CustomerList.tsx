@@ -33,6 +33,7 @@ export default function CustomerList({ customers }: { customers: any[] }) {
       <table className="w-full text-left border-collapse border">
         <thead className="bg-gray-50">
           <tr>
+            <th className="p-3 border">Hình ảnh</th>
             <th className="p-3 border">Họ tên</th>
             <th className="p-3 border">SĐT</th>
             <th className="p-3 border">Giới tính</th>
@@ -44,6 +45,13 @@ export default function CustomerList({ customers }: { customers: any[] }) {
         <tbody>
           {filteredCustomers.map((c) => (
             <tr key={c.id} className="hover:bg-gray-50">
+              <td className="p-3 border">
+                <img
+                  src={c.profiles?.avatar || "/default-avatar.png"}
+                  alt={c.profiles?.fullname || "Avatar"}
+                  className="w-10 h-10 rounded-full object-cover border"
+                />
+              </td>
               <td className="p-3 border">
                 {c.profiles?.fullname || "Chưa cập nhật"}
               </td>

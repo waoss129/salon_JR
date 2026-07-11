@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logoutAction } from "@/app/admin/accounts/logout-action";
 
 export default function AdminLayout({
   children,
@@ -26,16 +27,10 @@ export default function AdminLayout({
     );
   }
 
-  //them ham xu ly khi click nut dang xuat
-  const handleLogout = () => {
-    //xoa cookie dang nhap
-    document.cookie =
-      "user-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie =
-      "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-
-    //day ve trang login
-    window.location.href = "/admin/login";
+  //ham xu ly khi click nut dang xuat -> goi server action dang xuat that
+  //cua Supabase, ham nay se tu xoa session cookie va redirect ve /admin/login
+  const handleLogout = async () => {
+    await logoutAction();
   };
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: "#f9fafb" }}>

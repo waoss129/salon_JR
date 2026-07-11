@@ -1,20 +1,40 @@
 "use server";
-import { createAdminClient } from "@/lib/supabase/server";
 
-export async function loginAction(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const supabase = await createAdminClient();
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
-  // 1. GỌI SUPABASE ĐỂ CHECK LOGIN THẬT
-  const { data, error } = await supabase.auth.signInWithPassword({
+export type LoginState = {
+  success: boolean;
+  message: string;
+};
+
+export async function loginAction(
+  _prevState: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !password) {
+    return {
+      success: false,
+      message: "Vui lòng nhập đầy đủ email và mật khẩu.",
+    };
+  }
+
+  // Dùng client anon key để session được lưu vào cookie đúng chuẩn,
+  // middleware và các trang admin sau đó sẽ nhận diện được người dùng.
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  if (error) throw new Error("Email hoặc mật khẩu không đúng!");
+  if (error) {
+    return { success: false, message: "Email hoặc mật khẩu không đúng." };
+  }
 
-  // 2. NẾU LOGIN THÀNH CÔNG, LÚC NÀY MỚI CẤP COOKIE
-  // Supabase đã tự quản lý session qua Cookie rồi, bạn không cần tự set thủ công nữa
-  return { success: true };
+  // Đăng nhập thành công -> chuyển vào trang thông tin cá nhân
+  redirect("/admin/dashboard");
 }

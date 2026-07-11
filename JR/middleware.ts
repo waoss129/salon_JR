@@ -1,12 +1,19 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+// middleware.ts (đặt ở thư mục gốc project, ngang hàng với app/)
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
-export function middleware(request: NextRequest) {
-  // Trả về response mặc định, không chặn bất cứ thứ gì
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  return await updateSession(request);
 }
 
-// Bạn vẫn giữ config matcher để sau này bật lại là nó tự áp dụng
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    /*
+     * Áp dụng middleware cho mọi route, TRỪ:
+     * - file tĩnh Next.js (_next/static, _next/image)
+     * - favicon.ico
+     * - các file ảnh phổ biến
+     */
+    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
