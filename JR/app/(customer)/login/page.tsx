@@ -90,6 +90,14 @@ export default function LoginPage() {
           >
             ĐĂNG NHẬP ✨
           </button>
+          <div className="text-right">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-stone-500 hover:text-pink-400 hover:underline"
+            >
+              Quên mật khẩu?
+            </Link>
+          </div>
         </form>
 
         <p className="text-center text-sm text-stone-500">

@@ -1,18 +1,25 @@
 "use client";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addStaff, updateStaff } from "@/app/admin/staff/actions";
+import { addStaff } from "@/app/admin/staff/actions";
 
-export default function StaffModal({
-  roleId,
-  staffData,
-}: {
-  roleId: number;
-  staffData?: any;
-}) {
+export default function StaffModal({ roleId }: { roleId: number }) {
   const [isOpen, setIsOpen] = useState(false);
-  const isEdit = !!staffData;
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const handleSubmit = async (formData: FormData) => {
+    setError(null);
+    try {
+      await addStaff(formData, roleId);
+      setIsOpen(false);
+      router.refresh();
+    } catch (err: any) {
+      // Không đóng modal khi lỗi, để user sửa lại và submit tiếp
+      setError(err?.message || "Có lỗi xảy ra, vui lòng thử lại");
+    }
+  };
 
   return (
     <>
@@ -20,59 +27,53 @@ export default function StaffModal({
         onClick={() => setIsOpen(true)}
         className="bg-blue-500 text-white px-3 py-1 rounded"
       >
-        {isEdit ? "Sửa" : "+ Thêm nhân viên"}
+        + Thêm nhân viên
       </button>
 
       {isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <form
-            action={async (formData) => {
-              // Đảm bảo truyền đủ dữ liệu vào action
-              await addStaff(formData, roleId);
-              setIsOpen(false);
-              router.refresh();
-            }}
+            action={(formData) => startTransition(() => handleSubmit(formData))}
+            className="bg-white p-4 rounded w-full max-w-md"
           >
-            {/* Họ tên */}
+            {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+
             <input
               name="fullname"
-              defaultValue={staffData?.profiles?.fullname}
               placeholder="Họ tên"
               className="border p-2 mb-2 w-full"
+              required
             />
 
-            {/* Email (Chỉ hiện khi thêm mới) */}
-            {!isEdit && (
-              <input
-                name="email"
-                placeholder="Email"
-                className="border p-2 mb-2 w-full"
-              />
-            )}
+            <input
+              name="email"
+              type="email"
+              placeholder="Email"
+              className="border p-2 mb-2 w-full"
+              required
+            />
 
-            {/* Giới tính */}
             <select
               name="gender"
-              defaultValue={staffData?.profiles?.gender}
+              defaultValue="male"
               className="border p-2 mb-2 w-full"
             >
               <option value="male">Nam</option>
               <option value="female">Nữ</option>
             </select>
 
-            {/* SĐT */}
             <input
               name="phone"
-              defaultValue={staffData?.profiles?.phone}
               placeholder="Số điện thoại"
               className="border p-2 mb-2 w-full"
             />
 
             <button
               type="submit"
-              className="bg-green-500 text-white p-2 w-full"
+              disabled={isPending}
+              className="bg-green-500 text-white p-2 w-full disabled:opacity-50"
             >
-              Lưu thông tin
+              {isPending ? "Đang lưu..." : "Lưu thông tin"}
             </button>
             <button
               type="button"

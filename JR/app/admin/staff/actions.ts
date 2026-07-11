@@ -13,12 +13,13 @@ export async function addStaff(formData: FormData, roleId: number) {
   const gender = formData.get("gender") as string;
   const phone = formData.get("phone") as string;
 
-  // 1. Tạo user qua SQL RPC (Bypass Auth Service)
   const { data: userId, error: authError } = await supabase.rpc(
     "create_user_admin",
     {
       new_email: email,
       new_password: "password123",
+      new_fullname: fullname,
+      is_staff: true,
     },
   );
 
@@ -27,15 +28,27 @@ export async function addStaff(formData: FormData, roleId: number) {
     throw new Error("Không thể tạo User: " + authError.message);
   }
 
-  // 2. Insert vào profiles
-  await supabase
+  // Trigger đã tự tạo profiles (id, email, fullname) -> chỉ cần update thêm gender/phone
+  const { error: profileError } = await supabase
     .from("profiles")
-    .insert([{ id: userId, fullname, email, gender, phone }]);
+    .update({ gender, phone })
+    .eq("id", userId);
 
-  // 3. Insert vào employees
-  await supabase
+  if (profileError) {
+    console.error("LỖI UPDATE PROFILES:", profileError);
+    throw new Error(
+      "Không thể cập nhật thông tin cá nhân: " + profileError.message,
+    );
+  }
+
+  const { error: empError } = await supabase
     .from("employees")
     .insert([{ id: userId, role_id: roleId, status: "active" }]);
+
+  if (empError) {
+    console.error("LỖI INSERT EMPLOYEES:", empError);
+    throw new Error("Không thể tạo nhân viên: " + empError.message);
+  }
 
   revalidatePath("/admin/staff");
 }
