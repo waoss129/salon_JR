@@ -1,10 +1,10 @@
 "use server"; // Dòng này bắt buộc để Next.js hiểu đây là Server Action
-import { createClient } from "@/lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // Hàm Xóa
 export async function deleteService(id: number) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const { error } = await supabase.from("services").delete().eq("id", id);
 
   if (!error) {
@@ -15,7 +15,7 @@ export async function deleteService(id: number) {
 
 // Hàm Thêm (bạn sẽ dùng nó cho Form trong trang Add)
 export async function addService(formData: FormData) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   await supabase.from("services").insert({
     name: formData.get("name"),
     price: Number(formData.get("price")),
@@ -28,7 +28,7 @@ export async function addService(formData: FormData) {
 }
 
 export async function updateService(id: number, formData: FormData) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   await supabase
     .from("services")
     .update({

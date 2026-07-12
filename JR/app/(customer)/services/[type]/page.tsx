@@ -74,7 +74,7 @@ export default function ServiceDetailPage() {
       // Gọi trực tiếp dữ liệu từ bảng services lọc theo category_id thực tế
       const { data, error } = await supabase
         .from("services")
-        .select("name, price, description")
+        .select("id, name, price, description")
         .eq("category_id", config.id);
       //.eq("status", "active"); // Chỉ lấy các dịch vụ đang hoạt động
 
@@ -113,22 +113,15 @@ export default function ServiceDetailPage() {
     return `${price / 1000}k`;
   };
   //cap nhat: ham kiem tra dang nhap bat dong bo truoc khi chuyen trang booking
-  const handleBooking = async (serviceName: string, rawPrice: number) => {
-    //goi supabase kiem tra xem phien dang nhap (session) cua user co ton tai hay khong
+  const handleBooking = async (serviceId: number) => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) {
-      // Nếu chưa có phiên đăng nhập -> Kích hoạt hiển thị Modal nhắc nhở
       setShowAuthModal(true);
       return;
     }
-
-    // Nếu đã đăng nhập thành công -> Tiến hành chuyển hướng bình thường sang trang booking
-    const formattedPrice = formatPriceDisplay(rawPrice);
-    router.push(
-      `/booking?service=${encodeURIComponent(serviceName)}&price=${encodeURIComponent(formattedPrice)}`,
-    );
+    router.push(`/booking?serviceId=${serviceId}`);
   };
 
   return (
@@ -146,7 +139,7 @@ export default function ServiceDetailPage() {
           services.map((item: any, i: number) => (
             <div
               key={i}
-              onClick={() => handleBooking(item.name, item.price)}
+              onClick={() => handleBooking(item.id)}
               className={`p-6 rounded-2xl border ${config.border} ${config.bg} cursor-pointer hover:scale-[1.02] transition-transform flex justify-between items-center`}
             >
               <div>

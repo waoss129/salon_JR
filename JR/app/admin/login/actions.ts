@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 
 export type LoginState = {
   success: boolean;
@@ -24,7 +24,7 @@ export async function loginAction(
 
   // Dùng client anon key để session được lưu vào cookie đúng chuẩn,
   // middleware và các trang admin sau đó sẽ nhận diện được người dùng.
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const { error } = await supabase.auth.signInWithPassword({
     email,

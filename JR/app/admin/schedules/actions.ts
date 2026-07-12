@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // role_id 3, 4, 5 trong bảng roles là các vai trò "nhân viên" thực sự
@@ -35,7 +35,7 @@ export type EmployeeOption = {
  * Lấy danh sách ca làm việc (dùng cho form thêm lịch, checkbox sáng/chiều)
  */
 export async function getSessions(): Promise<SessionRow[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const { data, error } = await supabase
     .from("sessions")
     .select("id, name, start_time, end_time")
@@ -51,7 +51,7 @@ export async function getSessions(): Promise<SessionRow[]> {
  * này còn chứa các role không liên quan như admin, khách hàng...).
  */
 export async function getRoles() {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const { data, error } = await supabase
     .from("roles")
     .select("id, role_name")
@@ -71,7 +71,7 @@ export async function getRoles() {
  * (profiles!some_fkey), phải query 2 lần rồi merge bằng tay theo id.
  */
 export async function getEmployees(roleId?: number): Promise<EmployeeOption[]> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   let query = supabase
     .from("employees")
@@ -120,7 +120,7 @@ export async function getSchedules(params: {
   roleId?: number;
   search?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   // employees <-> profiles không có FK trực tiếp (xem ghi chú ở getEmployees),
   // nên chỉ join sessions + employees ở đây, còn profile lấy riêng bên dưới.
@@ -191,7 +191,7 @@ export async function createSchedules(input: {
     throw new Error("Thiếu thông tin nhân viên, ngày hoặc ca làm việc");
   }
 
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const { data: existing, error: existingError } = await supabase
     .from("schedules")
@@ -227,7 +227,7 @@ export async function updateScheduleStatus(
   scheduleId: string,
   status: ScheduleStatus,
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const { error } = await supabase
     .from("schedules")
     .update({ status })
@@ -240,7 +240,7 @@ export async function updateScheduleStatus(
  * Xoá 1 lịch làm việc
  */
 export async function deleteSchedule(scheduleId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const { error } = await supabase
     .from("schedules")
     .delete()

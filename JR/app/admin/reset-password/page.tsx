@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function AdminResetPasswordPage() {
-  const supabase = createClient();
+  const supabase = createAdminBrowserClient();
   const router = useRouter();
 
   const [password, setPassword] = useState("");

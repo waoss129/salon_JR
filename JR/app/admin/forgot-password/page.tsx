@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 export default function AdminForgotPasswordPage() {
-  const supabase = createClient();
+  const supabase = createAdminBrowserClient();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);

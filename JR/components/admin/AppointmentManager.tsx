@@ -4,8 +4,11 @@ import { useState, useTransition } from "react";
 import {
   getAppointments,
   updateAppointmentStatus,
+  getAvailableEmployeesForAppointment,
+  assignAppointmentEmployee,
   type AppointmentRow,
   type AppointmentStatus,
+  type AvailableEmployeeOption,
 } from "@/app/admin/appointments/actions";
 
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
@@ -24,15 +27,11 @@ const STATUS_COLOR: Record<AppointmentStatus, string> = {
   no_show: "bg-red-100 text-red-700",
 };
 
-// Với mỗi trạng thái hiện tại, admin được phép chuyển sang những trạng thái nào
 const NEXT_ACTIONS: Record<
   AppointmentStatus,
   { label: string; next: AppointmentStatus }[]
 > = {
-  pending: [
-    { label: "Xác nhận", next: "confirmed" },
-    { label: "Huỷ", next: "cancelled" },
-  ],
+  pending: [{ label: "Huỷ", next: "cancelled" }],
   confirmed: [
     { label: "Hoàn thành", next: "completed" },
     { label: "Không đến", next: "no_show" },
@@ -42,6 +41,9 @@ const NEXT_ACTIONS: Record<
   cancelled: [],
   no_show: [],
 };
+
+// Lịch hẹn ở trạng thái này thì admin còn có thể gán/đổi nhân viên
+const ASSIGNABLE_STATUSES: AppointmentStatus[] = ["pending", "confirmed"];
 
 function formatTime(time: string) {
   return time?.slice(0, 5) ?? "";
@@ -65,6 +67,14 @@ export function AppointmentManager({
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // State cho modal "Gán nhân viên"
+  const [assigningFor, setAssigningFor] = useState<AppointmentRow | null>(null);
+  const [employeeOptions, setEmployeeOptions] = useState<
+    AvailableEmployeeOption[]
+  >([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   function refresh(
     nextDate: string,
@@ -101,6 +111,41 @@ export function AppointmentManager({
     } catch (err) {
       alert(
         err instanceof Error ? err.message : "Không thể cập nhật trạng thái",
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function openAssignModal(appointment: AppointmentRow) {
+    setAssigningFor(appointment);
+    setEmployeeOptions([]);
+    setAssignError(null);
+    setLoadingOptions(true);
+    try {
+      const options = await getAvailableEmployeesForAppointment(appointment.id);
+      setEmployeeOptions(options);
+    } catch (err) {
+      setAssignError(
+        err instanceof Error
+          ? err.message
+          : "Không thể tải danh sách nhân viên",
+      );
+    } finally {
+      setLoadingOptions(false);
+    }
+  }
+
+  async function handleAssign(scheduleId: string) {
+    if (!assigningFor) return;
+    setUpdatingId(assigningFor.id);
+    try {
+      await assignAppointmentEmployee(assigningFor.id, scheduleId);
+      setAssigningFor(null);
+      refresh(date, status, search);
+    } catch (err) {
+      setAssignError(
+        err instanceof Error ? err.message : "Không thể gán nhân viên",
       );
     } finally {
       setUpdatingId(null);
@@ -185,6 +230,7 @@ export function AppointmentManager({
               const total = a.details.reduce((sum, d) => sum + d.price, 0);
               const time = new Date(a.appointment_date);
               const actions = NEXT_ACTIONS[a.status];
+              const canAssign = ASSIGNABLE_STATUSES.includes(a.status);
 
               return (
                 <tr key={a.id} className="border-t align-top">
@@ -232,6 +278,15 @@ export function AppointmentManager({
                   </td>
                   <td className="p-2">
                     <div className="flex flex-wrap gap-1">
+                      {canAssign && (
+                        <button
+                          onClick={() => openAssignModal(a)}
+                          disabled={updatingId === a.id}
+                          className="border rounded px-2 py-1 text-xs bg-violet-50 text-violet-700 disabled:opacity-50"
+                        >
+                          Gán nhân viên
+                        </button>
+                      )}
                       {actions.map((action) => (
                         <button
                           key={action.next}
@@ -242,7 +297,7 @@ export function AppointmentManager({
                           {action.label}
                         </button>
                       ))}
-                      {actions.length === 0 && (
+                      {actions.length === 0 && !canAssign && (
                         <span className="text-xs text-gray-300">—</span>
                       )}
                     </div>
@@ -252,6 +307,77 @@ export function AppointmentManager({
             })}
         </tbody>
       </table>
+
+      {/* Modal gán nhân viên */}
+      {assigningFor && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm">Gán nhân viên phù hợp</h3>
+              <button
+                onClick={() => setAssigningFor(null)}
+                className="text-gray-400 hover:text-gray-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-3">
+              Khách hàng:{" "}
+              <span className="font-medium text-gray-700">
+                {assigningFor.customer?.profile?.fullname ?? "—"}
+              </span>{" "}
+              · Dịch vụ:{" "}
+              <span className="font-medium text-gray-700">
+                {assigningFor.details
+                  .map((d) => d.service?.name)
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </span>
+            </p>
+
+            {loadingOptions && (
+              <div className="text-sm text-gray-400 py-4 text-center">
+                Đang tìm nhân viên trống phù hợp...
+              </div>
+            )}
+
+            {!loadingOptions && assignError && (
+              <div className="text-sm text-red-500 py-2">{assignError}</div>
+            )}
+
+            {!loadingOptions &&
+              !assignError &&
+              employeeOptions.length === 0 && (
+                <div className="text-sm text-gray-400 py-4 text-center">
+                  Không có nhân viên nào đang trống và phù hợp chuyên môn trong
+                  ngày này.
+                </div>
+              )}
+
+            {!loadingOptions && employeeOptions.length > 0 && (
+              <ul className="space-y-1 max-h-64 overflow-y-auto">
+                {employeeOptions.map((opt) => (
+                  <li key={opt.scheduleId}>
+                    <button
+                      onClick={() => handleAssign(opt.scheduleId)}
+                      disabled={updatingId === assigningFor.id}
+                      className="w-full text-left border rounded px-3 py-2 text-sm hover:bg-violet-50 disabled:opacity-50 flex items-center justify-between"
+                    >
+                      <span>{opt.employeeName ?? "Nhân viên chưa rõ tên"}</span>
+                      {opt.employeeLevel && (
+                        <span className="text-xs text-gray-400">
+                          {opt.employeeLevel}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

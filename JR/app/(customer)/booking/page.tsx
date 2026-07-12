@@ -1,59 +1,112 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  getServiceById,
+  getAvailableSessionsForDate,
+  createAppointment,
+  type ServiceInfo,
+  type SessionOption,
+} from "./actions";
+
+function formatTime(t: string) {
+  return t?.slice(0, 5) ?? "";
+}
+
+function formatPriceDisplay(price: number) {
+  return `${(price / 1000).toLocaleString("vi-VN")}k`;
+}
 
 function BookingContent() {
   const searchParams = useSearchParams();
-  const service = searchParams.get("service") || "Dịch vụ chưa được chọn";
-  const price = searchParams.get("price") || "---"; //lấy giá từ url
+  const router = useRouter();
+  const serviceId = Number(searchParams.get("serviceId"));
+
+  const [service, setService] = useState<ServiceInfo | null>(null);
+  const [sessions, setSessions] = useState<SessionOption[]>([]);
+  const [loadingInit, setLoadingInit] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Lấy ngày hôm nay (YYYY-MM-DD) để chặn chọn ngày quá khứ
   const today = new Date().toISOString().split("T")[0];
-
-  // Tính toán thứ trong tuần
   const selectDate = date ? new Date(date) : null;
   const dayOfWeek = selectDate ? selectDate.getDay() : -1;
   const isSunday = dayOfWeek === 0;
 
-  // Logic giờ làm việc
-  const getAvailableSlots = () => {
-    // T2-T6 (1, 2, 3, 4, 5)
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      return [
-        "08:00",
-        "09:00",
-        "10:00",
-        "11:00",
-        "13:00",
-        "14:00",
-        "15:00",
-        "16:00",
-      ];
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  useEffect(() => {
+    if (!date || isSunday) {
+      setSessions([]);
+      return;
     }
-    // T7 (6)
-    if (dayOfWeek === 6) {
-      return [
-        "09:00",
-        "10:00",
-        "11:00",
-        "13:00",
-        "14:00",
-        "15:00",
-        "16:00",
-        "17:00",
-      ];
+    setLoadingSessions(true);
+    getAvailableSessionsForDate(date)
+      .then(setSessions)
+      .catch(() => setSessions([]))
+      .finally(() => setLoadingSessions(false));
+  }, [date, isSunday]);
+
+  useEffect(() => {
+    if (!serviceId) {
+      setLoadError(
+        "Thiếu thông tin dịch vụ, vui lòng chọn lại từ trang dịch vụ",
+      );
+      setLoadingInit(false);
+      return;
     }
-    return [];
-  };
+    (async () => {
+      try {
+        const svc = await getServiceById(serviceId);
+        setService(svc);
+      } catch (err) {
+        setLoadError(
+          err instanceof Error ? err.message : "Không tải được dữ liệu",
+        );
+      } finally {
+        setLoadingInit(false);
+      }
+    })();
+  }, [serviceId]);
+
+  async function handleConfirm() {
+    if (!date || sessionId === null) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await createAppointment({ serviceId, date, sessionId, note });
+      router.push("/appointments");
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : "Không thể đặt lịch, vui lòng thử lại",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loadingInit) {
+    return <div className="p-20 text-center">Đang tải hành trình...</div>;
+  }
+
+  if (loadError || !service) {
+    return (
+      <div className="p-20 text-center text-stone-500">
+        {loadError ?? "Có lỗi xảy ra"}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto py-16 px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
-      {/* CỘT TRÁI: FORM */}
       <div className="space-y-8">
         <div>
           <h2 className="text-3xl font-extrabold text-stone-800">
@@ -64,7 +117,6 @@ function BookingContent() {
           </p>
         </div>
 
-        {/* Ngày */}
         <div>
           <label className="block text-sm font-bold text-stone-700 mb-2">
             Chọn ngày
@@ -72,9 +124,10 @@ function BookingContent() {
           <input
             type="date"
             min={today}
+            value={date}
             onChange={(e) => {
               setDate(e.target.value);
-              setTime("");
+              setSessionId(null);
             }}
             className="w-full p-4 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
           />
@@ -86,45 +139,57 @@ function BookingContent() {
           )}
         </div>
 
-        {/* Giờ */}
         {date && !isSunday && (
           <div className="animate-in fade-in slide-in-from-top-2">
             <label className="block text-sm font-bold text-stone-700 mb-2">
               Chọn khung giờ
             </label>
+            {loadingSessions && (
+              <p className="text-sm text-stone-400">Đang tải khung giờ...</p>
+            )}
+            {!loadingSessions && sessions.length === 0 && (
+              <p className="text-sm text-stone-400">
+                Ngày này chưa có ca làm việc nào, vui lòng chọn ngày khác.
+              </p>
+            )}
             <div className="grid grid-cols-4 gap-2">
-              {getAvailableSlots().map((slot) => (
+              {sessions.map((s) => (
                 <button
-                  key={slot}
-                  onClick={() => setTime(slot)}
+                  key={s.id}
+                  onClick={() => setSessionId(s.id)}
                   className={`p-3 text-sm rounded-xl border font-bold transition-all ${
-                    time === slot
+                    sessionId === s.id
                       ? "bg-orange-500 text-white border-orange-500 shadow-md"
                       : "bg-white text-stone-600 border-stone-200 hover:border-orange-400"
                   }`}
                 >
-                  {slot}
+                  {formatTime(s.start_time)}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Ghi chú */}
         <div>
           <label className="block text-sm font-bold text-stone-700 mb-2">
             Ghi chú cho tụi mình
           </label>
           <textarea
+            value={note}
             onChange={(e) => setNote(e.target.value)}
             className="w-full p-4 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
             rows={3}
             placeholder="Gửi tụi mình một vài yêu cầu nhỏ để JoyRide chuẩn bị chu đáo nhất cho bạn nha!✨"
           />
         </div>
+
+        {submitError && (
+          <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg p-3">
+            {submitError}
+          </p>
+        )}
       </div>
 
-      {/* CỘT PHẢI: VÉ HÀNH TRÌNH */}
       <div className="bg-orange-50/50 p-8 rounded-3xl border-2 border-dashed border-orange-100 sticky top-24">
         <h3 className="text-xl font-bold mb-6 text-orange-800 flex items-center gap-2">
           🎟️ Vé hành trình
@@ -133,23 +198,32 @@ function BookingContent() {
         <div className="space-y-4 text-orange-800">
           <p className="flex justify-between">
             <span>Dịch vụ:</span>
-            <strong className="text-right text-orange-900">{service}</strong>
+            <strong className="text-right text-orange-900">
+              {service.name}
+            </strong>
           </p>
 
-          {/* Dòng hiển thị giá đã nhận được */}
           <p className="flex justify-between border-b border-orange-200 pb-4">
             <span>Giá dự kiến:</span>
-            <strong className="text-orange-600">{price}</strong>
+            <strong className="text-orange-600">
+              {formatPriceDisplay(service.price)}
+            </strong>
           </p>
 
           <p className="flex justify-between">
             <span>Ngày:</span> <strong>{date || "---"}</strong>
           </p>
           <p className="flex justify-between">
-            <span>Giờ:</span> <strong>{time || "---"}</strong>
+            <span>Giờ:</span>{" "}
+            <strong>
+              {sessionId
+                ? formatTime(
+                    sessions.find((s) => s.id === sessionId)!.start_time,
+                  )
+                : "---"}
+            </strong>
           </p>
 
-          {/* Hiển thị ghi chú nếu khách có nhập */}
           {note && (
             <div className="pt-4 border-t border-orange-200">
               <span className="text-xs font-bold uppercase text-orange-400">
@@ -161,10 +235,11 @@ function BookingContent() {
         </div>
 
         <button
-          disabled={!date || !time || isSunday}
+          onClick={handleConfirm}
+          disabled={!date || sessionId === null || isSunday || submitting}
           className="w-full mt-8 bg-orange-400 text-white py-4 rounded-2xl font-bold hover:bg-orange-500 disabled:bg-orange-100 transition-all shadow-lg"
         >
-          XÁC NHẬN ĐẶT LỊCH
+          {submitting ? "Đang xử lý..." : "XÁC NHẬN ĐẶT LỊCH"}
         </button>
       </div>
     </div>

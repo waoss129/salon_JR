@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 import { deleteService } from "@/app/admin/services/actions";
 import ServiceModal from "@/components/admin/ServiceModal";
 
@@ -7,7 +7,7 @@ export default async function AdminServicesPage({
 }: {
   params: Promise<{ type: string }>;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   //giu nguyen logic lay supabase va categoryId
 

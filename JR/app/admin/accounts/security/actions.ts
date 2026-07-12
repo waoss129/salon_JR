@@ -1,9 +1,9 @@
 "use server";
 
-import { createClient } from "lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 
 export async function getCurrentEmail(): Promise<string | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

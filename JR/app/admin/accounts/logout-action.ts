@@ -1,13 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server"; // client anon key, gắn cookie phiên
+import { createAdminAuthClient } from "@/lib/supabase/server";
 
 export async function logoutAction() {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   await supabase.auth.signOut();
 
-  // Chuyển hẳn về trang login sau khi xoá session
   redirect("/admin/login");
 }

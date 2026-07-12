@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "lib/supabase/server"; // theo chuẩn @supabase/ssr
+import { createAdminAuthClient } from "@/lib/supabase/server"; // theo chuẩn @supabase/ssr
 
 export type ProfileWithEmployee = {
   id: string;
@@ -19,7 +19,7 @@ export type ProfileWithEmployee = {
 };
 
 export async function getCurrentAccount(): Promise<ProfileWithEmployee | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const {
     data: { user },
@@ -66,13 +66,18 @@ export async function updateProfile(
   _prevState: UpdateProfileState,
   formData: FormData,
 ): Promise<UpdateProfileState> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log("DEBUG - user:", user?.id, user?.email);
+  console.log("DEBUG - formData fullname:", formData.get("fullname"));
+  console.log("DEBUG - formData gender:", formData.get("gender"));
+
   if (!user) {
+    console.log("DEBUG - Không có user, return sớm");
     return { success: false, message: "Bạn cần đăng nhập lại." };
   }
 

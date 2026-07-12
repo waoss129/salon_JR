@@ -1,16 +1,31 @@
-// lib/supabase/middleware.ts
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ADMIN_PATHS = ["/admin/login"];
+const PUBLIC_ADMIN_PATHS = [
+  "/admin/login",
+  "/admin/forgot-password",
+  "/admin/reset-password",
+]; //tai login, forgot-password va reset-password
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  const pathname = request.nextUrl.pathname;
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some((p) =>
+    pathname.startsWith(p),
+  );
+
+  // Dùng đúng cookie name theo khu vực: admin dùng sb-admin-auth, khách hàng dùng sb-customer-auth
+  const cookieName = isAdminRoute ? "sb-admin-auth" : "sb-customer-auth";
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: {
+        name: cookieName,
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -28,26 +43,16 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Luôn gọi getUser() để làm mới token nếu cần — KHÔNG dùng getSession()
-  // ở middleware vì nó không refresh token.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some((p) =>
-    pathname.startsWith(p),
-  );
-
-  // Chưa đăng nhập mà vào trang admin (trừ trang login) -> đá về /admin/login
   if (!user && isAdminRoute && !isPublicAdminPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     return NextResponse.redirect(url);
   }
 
-  // Đã đăng nhập mà cố vào lại trang login -> đưa thẳng vào trang cá nhân
   if (user && isPublicAdminPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/dashboard";
