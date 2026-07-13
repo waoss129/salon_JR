@@ -1,127 +1,211 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { updateStaff } from "@/app/admin/staff/actions";
 
 export default function StaffDetailForm({ data }: { data: any }) {
   const [isPending, startTransition] = useTransition();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const router = useRouter();
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) setPreviewUrl(URL.createObjectURL(file));
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setError(null);
+    setSuccess(false);
+    try {
+      await updateStaff(data.id, formData);
+      setSuccess(true);
+      setPreviewUrl(null);
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || "Không thể lưu thay đổi");
+    }
+  }
 
   return (
     <form
-      action={(formData) =>
-        startTransition(() => updateStaff(data.id, formData))
-      }
-      //encType="multipart/form-data" //them dong nay de gui file
-      className="space-y-6 bg-white p-8 rounded shadow"
+      action={(formData) => startTransition(() => handleSubmit(formData))}
+      className="space-y-6 bg-white p-8 rounded-2xl shadow-sm border border-slate-200"
     >
-      {/* Avatar Upload */}
-      <div className="flex items-center gap-4 mb-6">
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg p-3">
+          Đã lưu thay đổi thành công!
+        </p>
+      )}
+
+      {/* Avatar */}
+      <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
         <img
-          src={data.profiles?.avatar || "/default-avatar.png"}
+          src={previewUrl || data.profiles?.avatar || "/default-avatar.png"}
           className="w-24 h-24 rounded-full border object-cover"
           alt="Avatar"
         />
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Thay đổi ảnh đại diện
+          <label className="block text-sm font-semibold text-slate-700 mb-1">
+            Ảnh đại diện
           </label>
           <input
             type="file"
             name="avatar"
             accept="image/*"
-            className="text-sm mt-1"
+            onChange={handleFileChange}
+            className="text-sm"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        {/* Thông tin cá nhân */}
-        <div className="col-span-2 text-lg font-bold border-b pb-2">
+      {/* Thông tin cá nhân */}
+      <div>
+        <h3 className="text-base font-bold text-slate-900 mb-4">
           Thông tin cá nhân
-        </div>
-
-        <input
-          name="fullname"
-          defaultValue={data.profiles?.fullname}
-          placeholder="Họ và tên"
-          className="border p-2 rounded w-full"
-        />
-        <input
-          name="email"
-          defaultValue={data.profiles?.email} //xoa thuoc tinh disable thi moi sua duoc
-          placeholder="Email"
-          className="border p-2 rounded bg-gray-100 w-full"
-        />
-
-        <div className="flex items-center gap-4 border p-2 rounded">
-          <span className="text-gray-500 text-sm">Giới tính:</span>
-          <label className="flex items-center gap-1">
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Họ và tên
+            </label>
             <input
-              type="radio"
-              name="gender"
-              value="male"
-              defaultChecked={data.profiles?.gender === "male"}
-            />{" "}
-            Nam
-          </label>
-          <label className="flex items-center gap-1">
+              name="fullname"
+              defaultValue={data.profiles?.fullname}
+              placeholder="Họ và tên"
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Email
+            </label>
             <input
-              type="radio"
-              name="gender"
-              value="female"
-              defaultChecked={data.profiles?.gender === "female"}
-            />{" "}
-            Nữ
-          </label>
+              name="email"
+              defaultValue={data.profiles?.email}
+              placeholder="Email"
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Giới tính
+            </label>
+            <div className="flex items-center gap-4 border rounded-lg px-3 py-2">
+              <label className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio"
+                  name="gender"
+                  value="male"
+                  defaultChecked={data.profiles?.gender === "male"}
+                />
+                Nam
+              </label>
+              <label className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio"
+                  name="gender"
+                  value="female"
+                  defaultChecked={data.profiles?.gender === "female"}
+                />
+                Nữ
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Ngày sinh
+            </label>
+            <input
+              type="date"
+              name="dob"
+              defaultValue={data.profiles?.dob}
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Số điện thoại
+            </label>
+            <input
+              name="phone"
+              defaultValue={data.profiles?.phone}
+              placeholder="Số điện thoại"
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Địa chỉ
+            </label>
+            <input
+              name="address"
+              defaultValue={data.profiles?.address}
+              placeholder="Địa chỉ"
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
         </div>
+      </div>
 
-        <input
-          type="date"
-          name="dob"
-          defaultValue={data.profiles?.dob}
-          className="border p-2 rounded"
-        />
-        <input
-          name="phone"
-          defaultValue={data.profiles?.phone}
-          placeholder="Số điện thoại"
-          className="border p-2 rounded"
-        />
-        <input
-          name="address"
-          defaultValue={data.profiles?.address}
-          placeholder="Địa chỉ"
-          className="border p-2 rounded col-span-2 w-full"
-        />
-
-        {/* Thông tin công việc & Bằng cấp */}
-        <div className="col-span-2 text-lg font-bold border-b pb-2 mt-4">
+      {/* Thông tin công việc */}
+      <div>
+        <h3 className="text-base font-bold text-slate-900 mb-4 pt-2 border-t border-slate-100">
           Thông tin công việc
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Ngày vào làm
+            </label>
+            <input
+              type="date"
+              name="joined_at"
+              defaultValue={data.joined_at}
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Chứng nhận
+            </label>
+            <input
+              name="certificate_name"
+              defaultValue={data.certificate_name}
+              placeholder="Chứng nhận"
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+              Cấp bậc
+            </label>
+            <input
+              name="level"
+              defaultValue={data.level}
+              placeholder="Cấp bậc"
+              className="border rounded-lg px-3 py-2 w-full text-sm"
+            />
+          </div>
         </div>
-        <input
-          type="date"
-          name="joined_at"
-          defaultValue={data.joined_at}
-          className="border p-2 rounded"
-        />
-        <input
-          name="certificate_name"
-          defaultValue={data.certificate_name}
-          placeholder="Chứng nhận"
-          className="border p-2 rounded"
-        />
-        <input
-          name="level"
-          defaultValue={data.level}
-          placeholder="Cấp bậc"
-          className="border p-2 rounded"
-        />
       </div>
 
       <button
         type="submit"
         disabled={isPending}
-        className="bg-blue-600 text-white px-8 py-3 rounded hover:bg-blue-700"
+        className="bg-black text-white px-8 py-3 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition"
       >
         {isPending ? "Đang lưu..." : "Lưu thay đổi"}
       </button>

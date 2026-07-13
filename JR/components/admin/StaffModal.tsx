@@ -16,7 +16,6 @@ export default function StaffModal({ roleId }: { roleId: number }) {
       setIsOpen(false);
       router.refresh();
     } catch (err: any) {
-      // Không đóng modal khi lỗi, để user sửa lại và submit tiếp
       setError(err?.message || "Có lỗi xảy ra, vui lòng thử lại");
     }
   };
@@ -25,63 +24,98 @@ export default function StaffModal({ roleId }: { roleId: number }) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="bg-blue-500 text-white px-3 py-1 rounded"
+        className="bg-black text-white rounded px-3 py-1.5 text-sm hover:bg-slate-800 transition"
       >
         + Thêm nhân viên
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <form
             action={(formData) => startTransition(() => handleSubmit(formData))}
-            className="bg-white p-4 rounded w-full max-w-md"
+            className="bg-white rounded-lg shadow-lg w-full max-w-md p-6"
           >
-            {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-base">Thêm nhân viên mới</h3>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
 
-            <input
-              name="fullname"
-              placeholder="Họ tên"
-              className="border p-2 mb-2 w-full"
-              required
-            />
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
+                {error}
+              </p>
+            )}
 
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              className="border p-2 mb-2 w-full"
-              required
-            />
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">Họ tên</label>
+                <input
+                  name="fullname"
+                  placeholder="Nhập họ tên"
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  required
+                />
+              </div>
 
-            <select
-              name="gender"
-              defaultValue="male"
-              className="border p-2 mb-2 w-full"
-            >
-              <option value="male">Nam</option>
-              <option value="female">Nữ</option>
-            </select>
+              <div>
+                <label className="text-sm font-medium block mb-1">Email</label>
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="Nhập email"
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  required
+                />
+              </div>
 
-            <input
-              name="phone"
-              placeholder="Số điện thoại"
-              className="border p-2 mb-2 w-full"
-            />
+              <div>
+                <label className="text-sm font-medium block mb-1">
+                  Giới tính
+                </label>
+                <select
+                  name="gender"
+                  defaultValue="male"
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                >
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                </select>
+              </div>
 
-            <button
-              type="submit"
-              disabled={isPending}
-              className="bg-green-500 text-white p-2 w-full disabled:opacity-50"
-            >
-              {isPending ? "Đang lưu..." : "Lưu thông tin"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="mt-2 text-gray-500 w-full text-center"
-            >
-              Đóng
-            </button>
+              <div>
+                <label className="text-sm font-medium block mb-1">
+                  Số điện thoại
+                </label>
+                <input
+                  name="phone"
+                  placeholder="Nhập số điện thoại"
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-5">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="border rounded px-3 py-1.5 text-sm"
+              >
+                Huỷ
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="bg-black text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
+              >
+                {isPending ? "Đang lưu..." : "Lưu thông tin"}
+              </button>
+            </div>
           </form>
         </div>
       )}

@@ -1,74 +1,126 @@
 "use client";
 import { useState } from "react";
 import ServiceModal from "@/components/admin/ServiceModal";
-import { deleteService } from "@/app/admin/services/actions";
+import {
+  deleteService,
+  toggleServiceStatus,
+} from "@/app/admin/services/actions";
+
+type ServiceRow = {
+  id: number;
+  name: string;
+  price: number;
+  description: string | null;
+  duration: number | null;
+  status: string | null;
+};
 
 export default function ServiceTable({
   services,
   typeId,
 }: {
-  services: any[];
+  services: ServiceRow[];
   typeId: number;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Logic lọc: Tìm theo tên dịch vụ (không phân biệt hoa thường)
   const filteredServices = services.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  async function handleDelete(id: number, name: string) {
+    if (!confirm(`Xóa dịch vụ "${name}"? Hành động này không thể hoàn tác.`))
+      return;
+    await deleteService(id);
+  }
+
+  async function handleToggleStatus(id: number, currentStatus: string | null) {
+    await toggleServiceStatus(id, currentStatus);
+  }
+
   return (
     <div className="space-y-4">
-      {/* Ô tìm kiếm */}
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          placeholder="Tìm kiếm dịch vụ theo tên..."
-          className="border p-2 w-full rounded focus:ring-2 focus:ring-blue-500 outline-none"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="Tìm kiếm dịch vụ theo tên..."
+        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
 
-      {/* Bảng dữ liệu */}
-      <table className="w-full border text-left">
-        <thead>
-          <tr className="bg-gray-100 border-b">
-            <th className="p-2">Tên Dịch Vụ</th>
-            <th className="p-2">Giá</th>
-            <th className="p-2">Hành động</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredServices.length > 0 ? (
-            filteredServices.map((service) => (
-              <tr key={service.id} className="border-b hover:bg-gray-50">
-                <td className="p-2">{service.name}</td>
-                <td className="p-2">
-                  {new Intl.NumberFormat("vi-VN").format(service.price)}đ
-                </td>
-                <td className="p-2 flex gap-2">
-                  <ServiceModal typeId={typeId} service={service} />
-                  <form action={deleteService.bind(null, service.id)}>
+      <div className="overflow-hidden rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-gray-500">
+                Tên dịch vụ
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-gray-500">
+                Giá
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-gray-500">
+                Thời gian
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-gray-500">
+                Trạng thái
+              </th>
+              <th className="px-4 py-3 text-center font-medium text-gray-500">
+                Hành động
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {filteredServices.length > 0 ? (
+              filteredServices.map((service) => (
+                <tr key={service.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    {service.name}
+                  </td>
+                  <td className="px-4 py-3">
+                    {new Intl.NumberFormat("vi-VN").format(service.price)}đ
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {service.duration ? `${service.duration} phút` : "—"}
+                  </td>
+                  <td className="px-4 py-3">
                     <button
-                      type="submit"
-                      className="text-red-600 hover:underline"
+                      onClick={() =>
+                        handleToggleStatus(service.id, service.status)
+                      }
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        service.status === "active"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
                     >
-                      Xóa
+                      {service.status === "active"
+                        ? "Đang kinh doanh"
+                        : "Ngừng kinh doanh"}
                     </button>
-                  </form>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <ServiceModal typeId={typeId} service={service} />
+                      <button
+                        onClick={() => handleDelete(service.id, service.name)}
+                        className="text-sm font-medium text-red-500 hover:underline"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                  Không tìm thấy dịch vụ nào.
                 </td>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={3} className="p-4 text-center text-gray-500">
-                Không tìm thấy dịch vụ nào!
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

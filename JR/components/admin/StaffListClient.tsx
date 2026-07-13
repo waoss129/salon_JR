@@ -1,28 +1,54 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-// Trong components/admin/StaffListClient.tsx
 import { updateStaffStatus, deleteStaff } from "@/app/admin/staff/actions";
-import { useRouter } from "next/navigation";
 
-// components/admin/StaffListClient.tsx
+const STATUS_LABEL: Record<string, string> = {
+  active: "Đang làm việc",
+  on_leave: "Đang nghỉ phép",
+  inactive: "Tạm nghỉ",
+  terminated: "Đã nghỉ việc",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  active: "bg-green-100 text-green-700",
+  on_leave: "bg-amber-100 text-amber-700",
+  inactive: "bg-gray-200 text-gray-600",
+  terminated: "bg-red-100 text-red-700",
+};
+
 export default function StaffListClient({
   initialStaff,
-  roleId,
 }: {
   initialStaff: any[];
   roleId: number;
 }) {
-  //khai bao state ngay dau ham components
   const [searchTerm, setSearchTerm] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa nhân viên này?")) {
+    if (!confirm("Bạn có chắc chắn muốn xóa nhân viên này?")) return;
+    setUpdatingId(id);
+    try {
       await deleteStaff(id);
-      window.location.reload(); // Refresh lại trang
+      window.location.reload();
+    } catch (err: any) {
+      alert(err?.message || "Không thể xoá nhân viên");
+      setUpdatingId(null);
     }
   };
-  //logic tim kiem: loc theo ten hoac 6 ky tu dau cua ID - bay gio ham filter nay moi nhin thay searchTerm
+
+  const handleStatusChange = async (id: string, status: string) => {
+    setUpdatingId(id);
+    try {
+      await updateStaffStatus(id, status);
+    } catch (err: any) {
+      alert(err?.message || "Không thể cập nhật trạng thái");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const filteredStaff = initialStaff.filter(
     (staff) =>
       staff.profiles?.fullname
@@ -30,80 +56,96 @@ export default function StaffListClient({
         .includes(searchTerm.toLowerCase()) ||
       staff.id.slice(0, 6).toLowerCase().includes(searchTerm.toLowerCase()),
   );
-  console.log("Danh sách nhân viên:", initialStaff);
+
   return (
     <div className="w-full">
-      {/* Ô tìm kiếm */}
       <div className="mb-4">
         <input
           type="text"
           placeholder="Tìm theo tên hoặc mã NV..."
-          className="border p-2 rounded-lg w-full md:w-1/3"
+          className="border rounded px-2 py-1.5 text-sm w-full md:w-1/3"
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
-      <div className="overflow-x-auto w-full border rounded-lg shadow-sm">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-50 border-b">
+
+      <table className="w-full text-sm border rounded overflow-hidden">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left p-2">Mã NV</th>
+            <th className="text-left p-2">Ảnh</th>
+            <th className="text-left p-2">Họ tên</th>
+            <th className="text-left p-2">Giới tính</th>
+            <th className="text-left p-2">SĐT</th>
+            <th className="text-left p-2">Email</th>
+            <th className="text-left p-2">Trạng thái</th>
+            <th className="text-left p-2">Hành động</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredStaff.length === 0 && (
             <tr>
-              <th className="p-3 font-semibold text-gray-700">Mã NV</th>
-              <th className="p-3 font-semibold text-gray-700">Ảnh</th>
-              <th className="p-3 font-semibold text-gray-700">Họ tên</th>
-              <th className="p-3 font-semibold text-gray-700">Giới tính</th>
-              <th className="p-3 font-semibold text-gray-700">SĐT</th>
-              <th className="p-3 font-semibold text-gray-700">Email</th>
-              <th className="p-3 font-semibold text-gray-700">Trạng thái</th>
-              <th className="p-3 font-semibold text-gray-700">Hành động</th>
+              <td colSpan={8} className="p-3 text-center text-gray-400">
+                Không tìm thấy nhân viên nào
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filteredStaff.map((staff) => (
-              <tr key={staff.id} className="hover:bg-gray-50">
-                <td className="p-3 text-sm">{staff.id.slice(0, 6)}...</td>
-                <td className="p-3">
-                  <img
-                    src={staff.profiles?.avatar || "/default.png"}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                </td>
-                <td className="p-3">
-                  {staff.profiles?.fullname || "Chưa cập nhật"}
-                </td>
-                <td className="p-3">{staff.profiles?.gender || "-"}</td>
-                <td className="p-3">{staff.profiles?.phone || "-"}</td>
-                <td className="p-3">{staff.profiles?.email || "-"}</td>
-                <td className="p-2 border">
-                  <select
-                    defaultValue={staff.status}
-                    onChange={(e) =>
-                      updateStaffStatus(staff.id, e.target.value)
-                    }
-                  >
-                    <option value="active">Đang làm việc</option>
-                    <option value="on_leave">Đang nghỉ phép</option>
-                    <option value="inactive">Tạm nghỉ</option>
-                    <option value="terminated">Đã nghỉ việc</option>
-                  </select>
-                </td>
-                <td className="p-3">
+          )}
+          {filteredStaff.map((staff) => (
+            <tr key={staff.id} className="border-t align-middle">
+              <td className="p-2 text-gray-500">{staff.id.slice(0, 6)}...</td>
+              <td className="p-2">
+                <img
+                  src={staff.profiles?.avatar || "/default-avatar.png"}
+                  alt=""
+                  className="w-9 h-9 rounded-full object-cover border"
+                />
+              </td>
+              <td className="p-2 font-medium">
+                {staff.profiles?.fullname || "Chưa cập nhật"}
+              </td>
+              <td className="p-2">
+                {staff.profiles?.gender === "male"
+                  ? "Nam"
+                  : staff.profiles?.gender === "female"
+                    ? "Nữ"
+                    : "—"}
+              </td>
+              <td className="p-2">{staff.profiles?.phone || "—"}</td>
+              <td className="p-2">{staff.profiles?.email || "—"}</td>
+              <td className="p-2">
+                <select
+                  defaultValue={staff.status}
+                  disabled={updatingId === staff.id}
+                  onChange={(e) => handleStatusChange(staff.id, e.target.value)}
+                  className={`text-xs px-2 py-1 rounded border-0 font-medium disabled:opacity-50 ${STATUS_COLOR[staff.status]}`}
+                >
+                  {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td className="p-2">
+                <div className="flex gap-2">
                   <Link
                     href={`/admin/staff/details/${staff.id}`}
-                    className="text-blue-600 hover:underline"
+                    className="border rounded px-2 py-1 text-xs hover:bg-gray-50"
                   >
-                    XEM
+                    Xem
                   </Link>
                   <button
                     onClick={() => handleDelete(staff.id)}
-                    className="text-red-600 hover:underline ml-2"
+                    disabled={updatingId === staff.id}
+                    className="border border-red-200 text-red-600 rounded px-2 py-1 text-xs hover:bg-red-50 disabled:opacity-50"
                   >
-                    XÓA
+                    Xoá
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

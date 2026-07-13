@@ -215,8 +215,11 @@ export async function getBestPromotionForBill(
   input: PromotionEligibilityInput,
 ): Promise<BestPromotionResult> {
   const supabase = await createAdminAuthClient();
-  const nowIso = new Date().toISOString();
+  const now = new Date();
 
+  // Lấy tất cả khuyến mãi đang active, tự lọc ngày bắt đầu/kết thúc bằng JS
+  // bên dưới (tránh dùng .or() kết hợp .gte() của PostgREST — dễ lỗi ngầm
+  // khi query bị PostgREST từ chối, hàm sẽ trả về null mà không rõ lý do).
   const { data: promotions, error } = await supabase
     .from("promotions")
     .select(
@@ -234,12 +237,23 @@ export async function getBestPromotionForBill(
       promotion_services ( service_id )
     `,
     )
-    .eq("is_active", true)
-    .gte("end_date", nowIso)
-    .or(`start_date.is.null,start_date.lte.${nowIso}`);
+    .eq("is_active", true);
 
-  if (error || !promotions || promotions.length === 0) {
-    if (error) console.error("getBestPromotionForBill error:", error);
+  if (error) {
+    console.error("getBestPromotionForBill query error:", error);
+    return null;
+  }
+  if (!promotions || promotions.length === 0) {
+    return null;
+  }
+
+  const eligibleByDate = promotions.filter((promo) => {
+    const endOk = new Date(promo.end_date) >= now;
+    const startOk = !promo.start_date || new Date(promo.start_date) <= now;
+    return endOk && startOk;
+  });
+
+  if (eligibleByDate.length === 0) {
     return null;
   }
 
@@ -260,7 +274,7 @@ export async function getBestPromotionForBill(
 
   let best: BestPromotionResult = null;
 
-  for (const promo of promotions) {
+  for (const promo of eligibleByDate) {
     if (promo.is_first_time && !isFirstTimeCustomer) continue;
     if (promo.min_order_value != null && totalSubtotal < promo.min_order_value)
       continue;

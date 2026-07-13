@@ -42,6 +42,19 @@ export async function createAppointment(params: {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Vui lòng đăng nhập để đặt lịch");
 
+  // Chặn đặt lịch nếu tài khoản đang bị khoá hoặc tạm ngưng
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("status")
+    .eq("id", user.id)
+    .single();
+
+  if (customer?.status === "inactive") {
+    throw new Error(
+      "Tài khoản của bạn đang tạm ngưng, không thể đặt lịch mới lúc này",
+    );
+  }
+
   const hours = getBusinessHoursForDate(params.date);
   if (!hours) {
     throw new Error(

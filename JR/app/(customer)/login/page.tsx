@@ -3,7 +3,6 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
-// Hàm chuyển đổi thông báo lỗi đăng nhập sang Tiếng Việt
 const getVietnameseLoginError = (message: string): string => {
   const msg = message.toLowerCase();
   if (msg.includes("invalid login credentials")) {
@@ -33,15 +32,27 @@ export default function LoginPage() {
     });
 
     if (error) {
-      // Hiển thị thông báo lỗi bằng Tiếng Việt thân thiện
       alert(getVietnameseLoginError(error.message));
-    } else {
-      console.log("Đăng nhập thành công", data.session);
-
-      // THAY THẾ router.push BẰNG window.location.href:
-      // Ép toàn bộ trình duyệt reload sạch cache cũ, buộc Header và UserDropdown nạp lại để lấy tên
-      window.location.href = "/";
+      return;
     }
+
+    // Kiểm tra tài khoản có bị khoá không, ngay sau khi đăng nhập thành công
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("status")
+      .eq("id", data.user.id)
+      .single();
+
+    if (customer?.status === "banned") {
+      await supabase.auth.signOut();
+      alert(
+        "Tài khoản của bạn đã bị khoá, vui lòng liên hệ JoyRide để được hỗ trợ",
+      );
+      return;
+    }
+
+    console.log("Đăng nhập thành công", data.session);
+    window.location.href = "/";
   };
 
   return (

@@ -22,6 +22,9 @@ export async function addService(formData: FormData) {
     category_id: Number(formData.get("category_id")),
     description: formData.get("description") || null,
     duration: formData.get("duration") || null,
+    // Quan trọng: luôn set status khi tạo mới, tránh để NULL (NULL sẽ bị coi là
+    // "không active" ở mọi nơi lọc theo status = 'active', ví dụ trang hóa đơn/khuyến mãi).
+    status: (formData.get("status") as string) || "active",
     //image_url: formData.get("image_url") || null,
   });
   revalidatePath("/admin/services/[type]");
@@ -36,8 +39,20 @@ export async function updateService(id: number, formData: FormData) {
       price: Number(formData.get("price")),
       description: formData.get("description") || null,
       duration: formData.get("duration") || null,
+      status: (formData.get("status") as string) || "active",
       //image_url: formData.get("image_url") || null,
     })
     .eq("id", id);
   revalidatePath("/admin/services/[type]");
+}
+
+// Bật/tắt nhanh trạng thái active-inactive ngay trên bảng danh sách.
+export async function toggleServiceStatus(
+  id: number,
+  currentStatus: string | null,
+) {
+  const supabase = await createAdminAuthClient();
+  const nextStatus = currentStatus === "active" ? "inactive" : "active";
+  await supabase.from("services").update({ status: nextStatus }).eq("id", id);
+  revalidatePath("/admin/services/[type]", "page");
 }

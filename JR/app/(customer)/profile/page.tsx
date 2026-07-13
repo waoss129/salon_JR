@@ -144,6 +144,7 @@ export default function ProfilePage() {
 
       await loadData(); // Tải lại dữ liệu mới từ DB
       setSelectedFile(null);
+      setPreviewUrl(null); //bỏ ảnh xem trước tạm, để hiển thị đúng profile.avatar thật vừa load lại
       alert("Đã lưu thay đổi thành công!");
       router.refresh();
     } catch (err: any) {

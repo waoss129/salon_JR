@@ -1,11 +1,29 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import CustomerModal from "./CustomerModal"; // Import modal sửa/thêm của bạn
 import {
   updateCustomerStatus,
   deleteCustomer,
 } from "@/app/admin/customers/actions";
+
+const GENDER_LABEL: Record<string, string> = {
+  male: "Nam",
+  female: "Nữ",
+  other: "Khác",
+  prefer_not_to_say: "Không muốn trả lời",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  active: "Đang hoạt động",
+  inactive: "Tạm ngưng",
+  banned: "Đã khoá",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  active: "bg-green-100 text-green-700",
+  inactive: "bg-gray-200 text-gray-600",
+  banned: "bg-red-100 text-red-700",
+};
 
 export default function CustomerList({ customers }: { customers: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,8 +35,25 @@ export default function CustomerList({ customers }: { customers: any[] }) {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     setLoadingId(id);
-    await updateCustomerStatus(id, newStatus);
-    setLoadingId(null);
+    try {
+      await updateCustomerStatus(id, newStatus);
+    } catch (err: any) {
+      alert(err?.message || "Không thể cập nhật trạng thái");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa khách hàng này?")) return;
+    setLoadingId(id);
+    try {
+      await deleteCustomer(id);
+    } catch (err: any) {
+      alert(err?.message || "Không thể xoá khách hàng");
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   return (
@@ -26,68 +61,75 @@ export default function CustomerList({ customers }: { customers: any[] }) {
       <input
         type="text"
         placeholder="Tìm kiếm khách hàng..."
-        className="border p-2 mb-4 w-full md:w-1/3 rounded"
+        className="border rounded px-2 py-1.5 text-sm mb-4 w-full md:w-1/3"
         onChange={(e) => setSearchTerm(e.target.value)}
       />
 
-      <table className="w-full text-left border-collapse border">
+      <table className="w-full text-sm border rounded overflow-hidden">
         <thead className="bg-gray-50">
           <tr>
-            <th className="p-3 border">Hình ảnh</th>
-            <th className="p-3 border">Họ tên</th>
-            <th className="p-3 border">SĐT</th>
-            <th className="p-3 border">Giới tính</th>
-            <th className="p-3 border">Email</th>
-            <th className="p-3 border">Trạng thái</th>
-            <th className="p-3 border">Hành động</th>
+            <th className="text-left p-2">Ảnh</th>
+            <th className="text-left p-2">Họ tên</th>
+            <th className="text-left p-2">SĐT</th>
+            <th className="text-left p-2">Giới tính</th>
+            <th className="text-left p-2">Email</th>
+            <th className="text-left p-2">Trạng thái</th>
+            <th className="text-left p-2">Hành động</th>
           </tr>
         </thead>
         <tbody>
+          {filteredCustomers.length === 0 && (
+            <tr>
+              <td colSpan={7} className="p-3 text-center text-gray-400">
+                Không tìm thấy khách hàng nào
+              </td>
+            </tr>
+          )}
           {filteredCustomers.map((c) => (
-            <tr key={c.id} className="hover:bg-gray-50">
-              <td className="p-3 border">
+            <tr key={c.id} className="border-t align-middle">
+              <td className="p-2">
                 <img
                   src={c.profiles?.avatar || "/default-avatar.png"}
-                  alt={c.profiles?.fullname || "Avatar"}
-                  className="w-10 h-10 rounded-full object-cover border"
+                  alt=""
+                  className="w-9 h-9 rounded-full object-cover border"
                 />
               </td>
-              <td className="p-3 border">
+              <td className="p-2 font-medium">
                 {c.profiles?.fullname || "Chưa cập nhật"}
               </td>
-              <td className="p-3 border">{c.profiles?.phone || "-"}</td>
-              <td className="p-3 border">{c.profiles?.gender || "-"}</td>
-              <td className="p-3 border">{c.profiles?.email || "-"}</td>
-              <td className="p-2 border">
+              <td className="p-2">{c.profiles?.phone || "—"}</td>
+              <td className="p-2">{GENDER_LABEL[c.profiles?.gender] || "—"}</td>
+              <td className="p-2">{c.profiles?.email || "—"}</td>
+              <td className="p-2">
                 <select
                   defaultValue={c.status}
                   disabled={loadingId === c.id}
-                  onChange={(e) => handleStatusChange(c.id, e.target.value)} // Dùng c.id (đúng)
-                  className="border p-1 rounded"
+                  onChange={(e) => handleStatusChange(c.id, e.target.value)}
+                  className={`text-xs px-2 py-1 rounded border-0 font-medium disabled:opacity-50 ${STATUS_COLOR[c.status]}`}
                 >
-                  <option value="active">Đang hoạt động</option>
-                  <option value="inactive">Tạm ngưng</option>
-                  <option value="banned">Đã khóa</option>
+                  {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
               </td>
-
-              <td className="p-3 border flex gap-2">
-                <Link
-                  href={`/admin/customers/${c.id}`} // Đảm bảo c.id này khớp với ID trong bảng customers
-                  className="text-blue-600 hover:underline"
-                >
-                  XEM
-                </Link>
-                <button
-                  onClick={async () => {
-                    if (confirm("Bạn có chắc chắn muốn xóa?")) {
-                      await deleteCustomer(c.id);
-                    }
-                  }}
-                  className="text-red-600 hover:underline"
-                >
-                  XÓA
-                </button>
+              <td className="p-2">
+                <div className="flex gap-2">
+                  <Link
+                    href={`/admin/customers/${c.id}`}
+                    className="border rounded px-2 py-1 text-xs hover:bg-gray-50"
+                  >
+                    Xem
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    disabled={loadingId === c.id}
+                    className="border border-red-200 text-red-600 rounded px-2 py-1 text-xs hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Xoá
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

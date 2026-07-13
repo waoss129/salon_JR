@@ -46,6 +46,29 @@ function shortId(id?: string | null) {
   return id ? `#${id.slice(0, 8).toUpperCase()}` : "—";
 }
 
+// Phân bổ discount_amount (1 số cho cả hóa đơn) xuống từng dòng dịch vụ theo
+// tỷ lệ subtotal, để cột "Thành tiền" cộng lại đúng bằng "Tổng tiền".
+// Dòng cuối nhận phần dư của phép chia để tránh lệch do làm tròn.
+function allocateDiscountToLines<T extends { subtotal: number }>(
+  lines: T[],
+  discountAmount: number,
+): (T & { finalAmount: number })[] {
+  const totalSubtotal = lines.reduce((sum, l) => sum + l.subtotal, 0);
+  if (totalSubtotal <= 0 || discountAmount <= 0) {
+    return lines.map((l) => ({ ...l, finalAmount: l.subtotal }));
+  }
+
+  let allocatedSoFar = 0;
+  return lines.map((line, idx) => {
+    const isLast = idx === lines.length - 1;
+    const share = isLast
+      ? discountAmount - allocatedSoFar
+      : Math.round((line.subtotal / totalSubtotal) * discountAmount);
+    allocatedSoFar += share;
+    return { ...line, finalAmount: line.subtotal - share };
+  });
+}
+
 export default function BillDetailModal({
   billId,
   onClose,
@@ -82,6 +105,10 @@ export default function BillDetailModal({
       .catch((err) => console.error("Tạo QR thất bại:", err));
   }, [bill]);
 
+  const adjustedLines = bill
+    ? allocateDiscountToLines(bill.lines, bill.discount_amount)
+    : [];
+
   async function handleConfirmPayment() {
     if (!bill) return;
     setConfirming(true);
@@ -101,7 +128,7 @@ export default function BillDetailModal({
     if (!bill || !qrDataUrl) return;
     const profile = bill.appointments?.customers?.profiles;
 
-    const rowsHtml = bill.lines
+    const rowsHtml = adjustedLines
       .map(
         (line, idx) => `
         <tr>
@@ -110,7 +137,7 @@ export default function BillDetailModal({
           <td style="padding:4px 8px;border:1px solid #ddd;">${line.services?.name ?? "—"}</td>
           <td style="padding:4px 8px;border:1px solid #ddd;text-align:center;">${line.quantity}</td>
           <td style="padding:4px 8px;border:1px solid #ddd;text-align:right;">${formatCurrency(line.price_at_time)}</td>
-          <td style="padding:4px 8px;border:1px solid #ddd;text-align:right;">${formatCurrency(line.subtotal)}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;text-align:right;">${formatCurrency(line.finalAmount)}</td>
         </tr>`,
       )
       .join("");
@@ -246,10 +273,26 @@ export default function BillDetailModal({
                 </h3>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <Field
+                    label="Tạm tính"
+                    value={formatCurrency(
+                      bill.total_price + bill.discount_amount,
+                    )}
+                  />
+                  <Field label="Phương thức" value="Tiền mặt" />
+                  <Field
+                    label="Khuyến mãi áp dụng"
+                    value={
+                      bill.promotions
+                        ? `${bill.promotions.code} (${bill.promotions.name}) − ${formatCurrency(bill.discount_amount)}`
+                        : bill.discount_amount > 0
+                          ? `Giảm ${formatCurrency(bill.discount_amount)}`
+                          : "Không có"
+                    }
+                  />
+                  <Field
                     label="Tổng tiền"
                     value={formatCurrency(bill.total_price)}
                   />
-                  <Field label="Phương thức" value="Tiền mặt" />
                 </div>
               </section>
 
@@ -283,7 +326,7 @@ export default function BillDetailModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {bill.lines.map((line, idx) => (
+                      {adjustedLines.map((line, idx) => (
                         <tr key={line.id}>
                           <td className="px-3 py-2">{idx + 1}</td>
                           <td className="px-3 py-2">
@@ -299,7 +342,7 @@ export default function BillDetailModal({
                             {formatCurrency(line.price_at_time)}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            {formatCurrency(line.subtotal)}
+                            {formatCurrency(line.finalAmount)}
                           </td>
                         </tr>
                       ))}

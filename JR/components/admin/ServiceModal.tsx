@@ -1,59 +1,40 @@
 "use client";
 import { useState } from "react";
-// Nếu file actions.ts nằm ở app/admin/actions.ts
 import { addService, updateService } from "@/app/admin/services/actions";
-//import { createClient } from "@/lib/supabase/client"; //dung client-side
+
+type ServiceRow = {
+  id: number;
+  name: string;
+  price: number;
+  description: string | null;
+  duration: number | null;
+  status: string | null;
+};
+
 export default function ServiceModal({
   typeId,
   service,
 }: {
   typeId: number;
-  service?: any;
+  service?: ServiceRow;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  //const [file, setFile] = useState<File | null>(null);
-
-  //ham xu ly upload anh va luu vao db
-  //   const handleSubmit = async (formData: FormData) => {
-  //     let imageUrl = service?.image_url;
-
-  //     // Nếu có chọn file mới, upload lên Supabase Storage
-  //     if (file) {
-  //       const supabase = createClient();
-  //       const fileName = `${Date.now()}_${file.name}`;
-  //       /// Upload ảnh lên bucket 'service-images'
-  //       await supabase.storage.from("service-images").upload(fileName, file);
-  //       //lay public URL
-  //       const { data } = supabase.storage
-  //         .from("service-images")
-  //         .getPublicUrl(fileName);
-  //       imageUrl = data.publicUrl;
-  //     }
-
-  //     //dua link anh vao formData de Server Action nhan duoc
-  //     formData.set("image_url", imageUrl || "");
-
-  //     if (service) {
-  //       await updateService(service.id, formData);
-  //     } else {
-  //       await addService(formData);
-  //     }
-  //     setIsOpen(false);
-  //   };
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
         className={
-          service ? "text-blue-600" : "bg-green-600 text-white p-2 rounded"
+          service
+            ? "text-sm font-medium text-blue-600 hover:underline"
+            : "rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
         }
       >
-        {service ? "Sửa" : "+ THÊM DỊCH VỤ"}
+        {service ? "Sửa" : "+ Thêm dịch vụ"}
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             action={async (formData) => {
               service
@@ -61,47 +42,94 @@ export default function ServiceModal({
                 : await addService(formData);
               setIsOpen(false);
             }}
-            className="bg-white p-6 rounded shadow-lg w-96 space-y-3"
+            className="w-full max-w-md space-y-4 rounded-lg bg-white p-6 shadow-xl"
           >
-            <input
-              name="name"
-              defaultValue={service?.name}
-              placeholder="Tên dịch vụ"
-              className="border p-2 w-full"
-              required
-            />
-            <input
-              name="price"
-              defaultValue={service?.price}
-              placeholder="Giá"
-              type="number"
-              className="border p-2 w-full"
-              required
-            />
-            <textarea
-              name="description"
-              defaultValue={service?.description}
-              placeholder="Mô tả"
-              className="border p-2 w-full"
-            />
-            <input
-              name="duration"
-              defaultValue={service?.duration}
-              placeholder="Thời gian"
-              className="border p-2 w-full"
-            />
+            <h2 className="text-lg font-semibold text-gray-900">
+              {service ? "Chỉnh sửa dịch vụ" : "Thêm mới dịch vụ"}
+            </h2>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-600">
+                Tên dịch vụ
+              </label>
+              <input
+                name="name"
+                defaultValue={service?.name}
+                placeholder="VD: ROSE"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm text-gray-600">
+                  Giá (đ)
+                </label>
+                <input
+                  name="price"
+                  defaultValue={service?.price}
+                  placeholder="VD: 645000"
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-gray-600">
+                  Thời gian (phút)
+                </label>
+                <input
+                  name="duration"
+                  defaultValue={service?.duration ?? undefined}
+                  placeholder="VD: 60"
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-600">Mô tả</label>
+              <textarea
+                name="description"
+                defaultValue={service?.description ?? undefined}
+                placeholder="Mô tả ngắn về dịch vụ..."
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-600">
+                Trạng thái
+              </label>
+              <select
+                name="status"
+                defaultValue={service?.status ?? "active"}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+              >
+                <option value="active">Đang kinh doanh</option>
+                <option value="inactive">Ngừng kinh doanh</option>
+              </select>
+            </div>
 
             <input type="hidden" name="category_id" value={typeId} />
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="bg-gray-300 p-2"
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 Hủy
               </button>
-              <button type="submit" className="bg-blue-600 text-white p-2">
+              <button
+                type="submit"
+                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+              >
                 Lưu
               </button>
             </div>
