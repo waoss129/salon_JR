@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createAdminBrowserClient } from "@/lib/supabase/client";
 import { logoutAction } from "@/app/admin/accounts/logout-action";
 import { getPendingAppointmentsSummary } from "@/app/admin/appointments/actions";
+import { canView } from "@/lib/supabase/permissions";
 
 type PendingItem = {
   id: string;
@@ -23,6 +24,7 @@ export default function AdminLayout({
 
   const [userRole, setUserRole] = useState<string>("");
   const [userName, setUserName] = useState<string>("");
+  const [roleId, setRoleId] = useState<number | null>(null);
 
   const [openDichVu, setOpenDichVu] = useState(false);
   const [openNhanVien, setOpenNhanVien] = useState(false);
@@ -59,14 +61,13 @@ export default function AdminLayout({
       if (data) {
         setUserRole((data as any).roles?.role_name ?? "");
         setUserName((data as any).profiles?.fullname ?? "");
+        setRoleId((data as any).role_id ?? null);
       }
     };
 
     loadUserInfo();
   }, [pathname, supabase]);
 
-  // Tải số lượng lịch hẹn đang chờ xử lý + lắng nghe realtime khi có
-  // lịch hẹn mới hoặc trạng thái lịch hẹn thay đổi
   useEffect(() => {
     if (pathname === "/admin/login") return;
 
@@ -116,115 +117,149 @@ export default function AdminLayout({
           </div>
 
           <nav className="space-y-1 font-medium text-slate-900">
-            <Link
-              href="/admin/dashboard"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Tổng Quan (Dashboard)
-            </Link>
-
-            <Link
-              href="/admin/accounts"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Tài Khoản
-            </Link>
-
-            <div>
-              <button
-                onClick={() => setOpenDichVu(!openDichVu)}
-                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
+            {canView(roleId, "dashboard") && (
+              <Link
+                href="/admin/dashboard"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
               >
-                <span>Dịch Vụ</span>
-                <span className="text-xs transition-transform duration-200">
-                  {openDichVu ? "▲" : "▼"}
-                </span>
-              </button>
-              {openDichVu && (
-                <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
-                  <Link
-                    href="/admin/services/hair"
-                    className="block p-2 text-sm hover:text-pink-600"
-                  >
-                    Hair
-                  </Link>
-                  <Link
-                    href="/admin/services/nail"
-                    className="block p-2 text-sm hover:text-blue-600"
-                  >
-                    Nail
-                  </Link>
-                  <Link
-                    href="/admin/services/spa"
-                    className="block p-2 text-sm hover:text-green-600"
-                  >
-                    Spa
-                  </Link>
-                </div>
-              )}
-            </div>
+                Tổng Quan (Dashboard)
+              </Link>
+            )}
 
-            <div>
-              <button
-                onClick={() => setOpenNhanVien(!openNhanVien)}
-                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
+            {canView(roleId, "accounts") && (
+              <Link
+                href="/admin/accounts"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
               >
-                <span>Nhân Viên</span>
-                <span className="text-xs transition-transform duration-200">
-                  {openNhanVien ? "▲" : "▼"}
-                </span>
-              </button>
-              {openNhanVien && (
-                <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
-                  <Link
-                    href="/admin/staff/manager"
-                    className="block p-2 text-sm hover:text-violet-500"
-                  >
-                    Quản Lý
-                  </Link>
-                  <Link
-                    href="/admin/staff/beautician"
-                    className="block p-2 text-sm hover:text-violet-500"
-                  >
-                    Chuyên Viên
-                  </Link>
-                  <Link
-                    href="/admin/staff/receptionist"
-                    className="block p-2 text-sm hover:text-violet-500"
-                  >
-                    Lễ Tân
-                  </Link>
-                </div>
-              )}
-            </div>
+                Tài Khoản
+              </Link>
+            )}
 
-            <Link
-              href="/admin/customers"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Khách Hàng
-            </Link>
+            {canView(roleId, "services") && (
+              <div>
+                <button
+                  onClick={() => setOpenDichVu(!openDichVu)}
+                  className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
+                >
+                  <span>Dịch Vụ</span>
+                  <span className="text-xs transition-transform duration-200">
+                    {openDichVu ? "▲" : "▼"}
+                  </span>
+                </button>
+                {openDichVu && (
+                  <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
+                    <Link
+                      href="/admin/services/hair"
+                      className="block p-2 text-sm hover:text-pink-600"
+                    >
+                      Hair
+                    </Link>
+                    <Link
+                      href="/admin/services/nail"
+                      className="block p-2 text-sm hover:text-blue-600"
+                    >
+                      Nail
+                    </Link>
+                    <Link
+                      href="/admin/services/spa"
+                      className="block p-2 text-sm hover:text-green-600"
+                    >
+                      Spa
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <Link
-              href="/admin/schedules"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Lịch Làm Việc
-            </Link>
+            {canView(roleId, "staff") && (
+              <div>
+                <button
+                  onClick={() => setOpenNhanVien(!openNhanVien)}
+                  className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
+                >
+                  <span>Nhân Viên</span>
+                  <span className="text-xs transition-transform duration-200">
+                    {openNhanVien ? "▲" : "▼"}
+                  </span>
+                </button>
+                {openNhanVien && (
+                  <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
+                    <Link
+                      href="/admin/staff/manager"
+                      className="block p-2 text-sm hover:text-violet-500"
+                    >
+                      Quản Lý
+                    </Link>
+                    <Link
+                      href="/admin/staff/beautician"
+                      className="block p-2 text-sm hover:text-violet-500"
+                    >
+                      Chuyên Viên
+                    </Link>
+                    <Link
+                      href="/admin/staff/receptionist"
+                      className="block p-2 text-sm hover:text-violet-500"
+                    >
+                      Lễ Tân
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <Link
-              href="/admin/appointments"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Lịch Hẹn
-            </Link>
+            {canView(roleId, "customers") && (
+              <Link
+                href="/admin/customers"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                Khách Hàng
+              </Link>
+            )}
 
-            <Link
-              href="/admin/bills"
-              className="block p-2.5 rounded hover:bg-purple-200 transition"
-            >
-              Hóa Đơn
-            </Link>
+            {canView(roleId, "schedules") && (
+              <Link
+                href="/admin/schedules"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                Lịch Làm Việc
+              </Link>
+            )}
+
+            {canView(roleId, "appointments") && (
+              <Link
+                href="/admin/appointments"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                Lịch Hẹn
+              </Link>
+            )}
+
+            {canView(roleId, "bills") && (
+              <Link
+                href="/admin/bills"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                Hóa Đơn
+              </Link>
+            )}
+
+            {canView(roleId, "promotions") && (
+              <Link
+                href="/admin/promotions"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                Khuyến Mãi
+              </Link>
+            )}
+
+            {canView(roleId, "statistics") && (
+              <Link
+                href="/admin/statistics"
+                className="block p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                Thống Kê
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -247,7 +282,6 @@ export default function AdminLayout({
           </h2>
 
           <div className="flex items-center gap-6">
-            {/* Chuông thông báo - dữ liệu thật từ lịch hẹn đang chờ xác nhận */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifications((v) => !v)}
@@ -292,7 +326,8 @@ export default function AdminLayout({
                         key={item.id}
                         onClick={() => {
                           setShowNotifications(false);
-                          router.push("/admin/appointments");
+                          const date = item.appointment_date.slice(0, 10);
+                          router.push(`/admin/appointments?date=${date}`);
                         }}
                         className="w-full text-left p-3 border-b last:border-b-0 hover:bg-slate-50 text-sm"
                       >

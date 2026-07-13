@@ -1,8 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import CustomerList from "@/components/admin/CustomerList";
 import CustomerModal from "@/components/admin/CustomerModal";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 export default async function CustomersPage() {
+  await requireView("customers");
+
   const supabase = await createAdminClient();
 
   // 1. Thực hiện truy vấn dữ liệu

@@ -1,12 +1,15 @@
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { deleteService } from "@/app/admin/services/actions";
 import ServiceModal from "@/components/admin/ServiceModal";
+import ServiceTable from "@/components/admin/ServiceTable";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 export default async function AdminServicesPage({
   params,
 }: {
   params: Promise<{ type: string }>;
 }) {
+  await requireView("services");
   const supabase = await createAdminAuthClient();
 
   //giu nguyen logic lay supabase va categoryId
@@ -50,37 +53,8 @@ export default async function AdminServicesPage({
         <ServiceModal typeId={categoryId} />
       </div>
 
-      <table className="mt-4 w-full border text-left">
-        <thead>
-          <tr className="bg-gray-100 border-b">
-            <th className="p-2">Tên Dịch Vụ</th>
-            <th className="p-2">Giá</th>
-            <th className="p-2">Hành động</th>
-          </tr>
-        </thead>
-        <tbody>
-          {services?.map((service) => (
-            <tr key={service.id} className="border-b">
-              <td className="p-2">{service.name}</td>
-              <td className="p-2">
-                {new Intl.NumberFormat("vi-VN").format(service.price)}
-              </td>
-              <td className="p-2 flex gap-2">
-                <ServiceModal typeId={categoryId} service={service} />{" "}
-                {/* Nút Sửa */}
-                <form action={deleteService.bind(null, service.id)}>
-                  <button
-                    type="submit"
-                    className="text-red-600 hover:underline"
-                  >
-                    Xóa
-                  </button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Thay bảng cũ bằng ServiceTable mới */}
+      <ServiceTable services={services || []} typeId={categoryId} />
     </div>
   );
 }

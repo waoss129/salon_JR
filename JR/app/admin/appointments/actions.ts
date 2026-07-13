@@ -153,20 +153,26 @@ export async function getAvailableEmployeesForAppointment(
     .select(
       `
       id,
-      schedule:schedules!appointments_schedule_id_fkey ( id, date, session_id ),
-      details ( service:services ( category_id ) )
+      appointment_date,
+      details ( service:services ( category_id, duration ) )
     `,
     )
     .eq("id", appointmentId)
     .single();
 
-  if (apptErr) throw new Error(apptErr.message);
-  if (!appointment?.schedule) {
-    throw new Error("Lịch hẹn này chưa gắn với ngày làm việc nào");
-  }
+  if (apptErr || !appointment) throw new Error("Không tìm thấy lịch hẹn");
 
-  const scheduleDate = (appointment as any).schedule.date as string;
-  const originalSessionId = (appointment as any).schedule.session_id as number;
+  const apptStart = new Date(appointment.appointment_date);
+  const scheduleDate = appointment.appointment_date.split("T")[0];
+  const timeWithSeconds = apptStart.toTimeString().slice(0, 8);
+
+  const DEFAULT_DURATION_MIN = 60;
+  const totalDurationMin = ((appointment as any).details ?? []).reduce(
+    (sum: number, d: any) =>
+      sum + (d.service?.duration ?? DEFAULT_DURATION_MIN),
+    0,
+  );
+  const apptEnd = new Date(apptStart.getTime() + totalDurationMin * 60 * 1000);
 
   const categoryIds = Array.from(
     new Set(
@@ -177,7 +183,16 @@ export async function getAvailableEmployeesForAppointment(
   );
   if (categoryIds.length === 0) return [];
 
-  // 1. Nhân viên có chuyên môn phù hợp
+  const { data: coveringSessions, error: sessErr } = await supabase
+    .from("sessions")
+    .select("id")
+    .lte("start_time", timeWithSeconds)
+    .gt("end_time", timeWithSeconds);
+  if (sessErr) throw new Error(sessErr.message);
+
+  const sessionIds = (coveringSessions ?? []).map((s) => s.id);
+  if (sessionIds.length === 0) return [];
+
   const { data: empCats, error: empCatErr } = await supabase
     .from("employee_categories")
     .select("employee_id")
@@ -200,46 +215,61 @@ export async function getAvailableEmployeesForAppointment(
   if (empErr) throw new Error(empErr.message);
   if (!employees || employees.length === 0) return [];
 
-  const employeeIds = employees.map((e) => e.id);
-
-  // 2. Lịch làm việc của các nhân viên đó, đúng ngày lịch hẹn
+  // Lịch làm việc đúng ngày, đúng ca — mỗi nhân viên chỉ có 1 dòng/ca/ngày
   const { data: daySchedules, error: schedErr } = await supabase
     .from("schedules")
-    .select("id, employee_id, session_id, status")
-    .in("employee_id", employeeIds)
+    .select("id, employee_id")
+    .in(
+      "employee_id",
+      employees.map((e) => e.id),
+    )
     .eq("date", scheduleDate)
-    .in("status", ["scheduled", "confirmed"]);
+    .in("session_id", sessionIds)
+    .in("status", ["assigned", "checked_in"]);
   if (schedErr) throw new Error(schedErr.message);
   if (!daySchedules || daySchedules.length === 0) return [];
 
-  // 3. Loại nhân viên đã có lịch hẹn khác (chưa huỷ) trong ngày đó -> không trống
-  const scheduleIdsThatDay = daySchedules.map((s) => s.id);
-  const { data: busy, error: busyErr } = await supabase
-    .from("appointments")
-    .select("schedule_id")
-    .in("schedule_id", scheduleIdsThatDay)
-    .neq("id", appointmentId)
-    .neq("status", "cancelled");
-  if (busyErr) throw new Error(busyErr.message);
+  const scheduleIds = daySchedules.map((s) => s.id);
 
-  const busyEmployeeIds = new Set(
-    (busy ?? [])
-      .map((b) => daySchedules.find((s) => s.id === b.schedule_id)?.employee_id)
-      .filter(Boolean),
-  );
+  // Lấy TẤT CẢ lịch hẹn khác (chưa huỷ/no_show) đang gán vào các schedule này,
+  // để kiểm tra trùng giờ — khác với trước đây (chỉ cần "có tồn tại" là loại luôn)
+  const { data: otherAppointments, error: otherErr } = await supabase
+    .from("appointments")
+    .select(
+      "id, schedule_id, appointment_date, details(service:services(duration))",
+    )
+    .in("schedule_id", scheduleIds)
+    .neq("id", appointmentId)
+    .not("status", "in", "(cancelled,no_show)");
+  if (otherErr) throw new Error(otherErr.message);
+
+  function isOverlapping(otherApptDate: string, otherDurationMin: number) {
+    const otherStart = new Date(otherApptDate);
+    const otherEnd = new Date(
+      otherStart.getTime() + otherDurationMin * 60 * 1000,
+    );
+    return apptStart < otherEnd && otherStart < apptEnd;
+  }
+
+  const busyScheduleIds = new Set<string>();
+  for (const other of otherAppointments ?? []) {
+    const otherDuration = ((other as any).details ?? []).reduce(
+      (sum: number, d: any) =>
+        sum + (d.service?.duration ?? DEFAULT_DURATION_MIN),
+      0,
+    );
+    if (isOverlapping(other.appointment_date, otherDuration)) {
+      busyScheduleIds.add(other.schedule_id);
+    }
+  }
 
   const options: AvailableEmployeeOption[] = [];
-  for (const emp of employees) {
-    if (busyEmployeeIds.has(emp.id)) continue;
-    const schedulesOfEmp = daySchedules.filter((s) => s.employee_id === emp.id);
-    const preferred = schedulesOfEmp.find(
-      (s) => s.session_id === originalSessionId,
-    );
-    const chosenSchedule = preferred ?? schedulesOfEmp[0];
-    if (!chosenSchedule) continue;
-
+  for (const sched of daySchedules) {
+    if (busyScheduleIds.has(sched.id)) continue; // Bận đúng giờ này
+    const emp = employees.find((e) => e.id === sched.employee_id);
+    if (!emp) continue;
     options.push({
-      scheduleId: chosenSchedule.id,
+      scheduleId: sched.id,
       employeeId: emp.id,
       employeeName: (emp as any).profile?.fullname ?? null,
       employeeLevel: (emp as any).level ?? null,

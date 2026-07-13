@@ -1,5 +1,6 @@
 import { getEmployees, getRoles, getSchedules, getSessions } from "./actions";
 import { ScheduleManager } from "@/components/admin/ScheduleManager";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 function getCurrentWeekRange() {
   const now = new Date();

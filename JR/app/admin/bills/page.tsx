@@ -1,6 +1,9 @@
 import BillList from "@/components/admin/BillList";
+import { requireView } from "@/lib/supabase/admin-guard";
 
-export default function BillsPage() {
+export default async function BillsPage() {
+  await requireView("bills");
+
   return (
     <div className="p-6">
       <h1 className="mb-6 text-2xl font-semibold text-gray-900">

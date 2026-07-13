@@ -1,7 +1,10 @@
 import { getCurrentAccount } from "./actions";
 import ProfileForm from "@/components/admin/ProfileForm";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 export default async function AccountProfilePage() {
+  await requireView("accounts");
+
   const account = await getCurrentAccount();
 
   if (!account) {

@@ -2,17 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import {
-  getServiceById,
-  getAvailableSessionsForDate,
-  createAppointment,
-  type ServiceInfo,
-  type SessionOption,
-} from "./actions";
-
-function formatTime(t: string) {
-  return t?.slice(0, 5) ?? "";
-}
+import { getServiceById, createAppointment, type ServiceInfo } from "./actions";
+import { getTimeSlotsForDate } from "@/lib/supabase/business_hours";
 
 function formatPriceDisplay(price: number) {
   return `${(price / 1000).toLocaleString("vi-VN")}k`;
@@ -24,12 +15,11 @@ function BookingContent() {
   const serviceId = Number(searchParams.get("serviceId"));
 
   const [service, setService] = useState<ServiceInfo | null>(null);
-  const [sessions, setSessions] = useState<SessionOption[]>([]);
   const [loadingInit, setLoadingInit] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [date, setDate] = useState("");
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [time, setTime] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -39,19 +29,7 @@ function BookingContent() {
   const dayOfWeek = selectDate ? selectDate.getDay() : -1;
   const isSunday = dayOfWeek === 0;
 
-  const [loadingSessions, setLoadingSessions] = useState(false);
-
-  useEffect(() => {
-    if (!date || isSunday) {
-      setSessions([]);
-      return;
-    }
-    setLoadingSessions(true);
-    getAvailableSessionsForDate(date)
-      .then(setSessions)
-      .catch(() => setSessions([]))
-      .finally(() => setLoadingSessions(false));
-  }, [date, isSunday]);
+  const slots = date ? getTimeSlotsForDate(date) : [];
 
   useEffect(() => {
     if (!serviceId) {
@@ -61,26 +39,22 @@ function BookingContent() {
       setLoadingInit(false);
       return;
     }
-    (async () => {
-      try {
-        const svc = await getServiceById(serviceId);
-        setService(svc);
-      } catch (err) {
+    getServiceById(serviceId)
+      .then(setService)
+      .catch((err) =>
         setLoadError(
           err instanceof Error ? err.message : "Không tải được dữ liệu",
-        );
-      } finally {
-        setLoadingInit(false);
-      }
-    })();
+        ),
+      )
+      .finally(() => setLoadingInit(false));
   }, [serviceId]);
 
   async function handleConfirm() {
-    if (!date || sessionId === null) return;
+    if (!date || !time) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await createAppointment({ serviceId, date, sessionId, note });
+      await createAppointment({ serviceId, date, time, note });
       router.push("/appointments");
     } catch (err) {
       setSubmitError(
@@ -96,7 +70,6 @@ function BookingContent() {
   if (loadingInit) {
     return <div className="p-20 text-center">Đang tải hành trình...</div>;
   }
-
   if (loadError || !service) {
     return (
       <div className="p-20 text-center text-stone-500">
@@ -127,7 +100,7 @@ function BookingContent() {
             value={date}
             onChange={(e) => {
               setDate(e.target.value);
-              setSessionId(null);
+              setTime(null);
             }}
             className="w-full p-4 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
           />
@@ -144,26 +117,18 @@ function BookingContent() {
             <label className="block text-sm font-bold text-stone-700 mb-2">
               Chọn khung giờ
             </label>
-            {loadingSessions && (
-              <p className="text-sm text-stone-400">Đang tải khung giờ...</p>
-            )}
-            {!loadingSessions && sessions.length === 0 && (
-              <p className="text-sm text-stone-400">
-                Ngày này chưa có ca làm việc nào, vui lòng chọn ngày khác.
-              </p>
-            )}
             <div className="grid grid-cols-4 gap-2">
-              {sessions.map((s) => (
+              {slots.map((slot) => (
                 <button
-                  key={s.id}
-                  onClick={() => setSessionId(s.id)}
+                  key={slot}
+                  onClick={() => setTime(slot)}
                   className={`p-3 text-sm rounded-xl border font-bold transition-all ${
-                    sessionId === s.id
+                    time === slot
                       ? "bg-orange-500 text-white border-orange-500 shadow-md"
                       : "bg-white text-stone-600 border-stone-200 hover:border-orange-400"
                   }`}
                 >
-                  {formatTime(s.start_time)}
+                  {slot}
                 </button>
               ))}
             </div>
@@ -194,7 +159,6 @@ function BookingContent() {
         <h3 className="text-xl font-bold mb-6 text-orange-800 flex items-center gap-2">
           🎟️ Vé hành trình
         </h3>
-
         <div className="space-y-4 text-orange-800">
           <p className="flex justify-between">
             <span>Dịch vụ:</span>
@@ -202,28 +166,18 @@ function BookingContent() {
               {service.name}
             </strong>
           </p>
-
           <p className="flex justify-between border-b border-orange-200 pb-4">
             <span>Giá dự kiến:</span>
             <strong className="text-orange-600">
               {formatPriceDisplay(service.price)}
             </strong>
           </p>
-
           <p className="flex justify-between">
             <span>Ngày:</span> <strong>{date || "---"}</strong>
           </p>
           <p className="flex justify-between">
-            <span>Giờ:</span>{" "}
-            <strong>
-              {sessionId
-                ? formatTime(
-                    sessions.find((s) => s.id === sessionId)!.start_time,
-                  )
-                : "---"}
-            </strong>
+            <span>Giờ:</span> <strong>{time || "---"}</strong>
           </p>
-
           {note && (
             <div className="pt-4 border-t border-orange-200">
               <span className="text-xs font-bold uppercase text-orange-400">
@@ -236,7 +190,7 @@ function BookingContent() {
 
         <button
           onClick={handleConfirm}
-          disabled={!date || sessionId === null || isSunday || submitting}
+          disabled={!date || !time || isSunday || submitting}
           className="w-full mt-8 bg-orange-400 text-white py-4 rounded-2xl font-bold hover:bg-orange-500 disabled:bg-orange-100 transition-all shadow-lg"
         >
           {submitting ? "Đang xử lý..." : "XÁC NHẬN ĐẶT LỊCH"}

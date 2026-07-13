@@ -136,18 +136,35 @@ export async function getBills(
     return { data: [], error: error.message };
   }
 
-  const bills: BillListItem[] = (data ?? []).map((b: any) => ({
-    id: b.id,
-    billCode: `#${b.id.slice(0, 8).toUpperCase()}`,
-    customerName: b.appointments?.customers?.profiles?.fullname ?? "—",
-    phone: b.appointments?.customers?.profiles?.phone ?? "—",
-    totalPrice: b.total_price,
-    createdAt: b.created_at,
-    // Xấp xỉ "ngày thanh toán" bằng lần cập nhật gần nhất khi status = paid.
-    // DB hiện chưa có cột paid_at riêng, nên đây chỉ là giá trị gần đúng.
-    paidAt: b.status === "paid" ? b.updated_at : null,
-    status: b.status,
-  }));
+  type BillRow = {
+    id: string;
+    total_price: number;
+    status: BillStatus;
+    created_at: string;
+    updated_at: string;
+    appointments: {
+      id: string;
+      customers: {
+        id: string;
+        profiles: { fullname: string | null; phone: string | null } | null;
+      } | null;
+    } | null;
+  };
+
+  const bills: BillListItem[] = ((data ?? []) as unknown as BillRow[]).map(
+    (b) => ({
+      id: b.id,
+      billCode: `#${b.id.slice(0, 8).toUpperCase()}`,
+      customerName: b.appointments?.customers?.profiles?.fullname ?? "—",
+      phone: b.appointments?.customers?.profiles?.phone ?? "—",
+      totalPrice: b.total_price,
+      createdAt: b.created_at,
+      // Xấp xỉ "ngày thanh toán" bằng lần cập nhật gần nhất khi status = paid.
+      // DB hiện chưa có cột paid_at riêng, nên đây chỉ là giá trị gần đúng.
+      paidAt: b.status === "paid" ? b.updated_at : null,
+      status: b.status,
+    }),
+  );
 
   return { data: bills, error: null };
 }
@@ -208,7 +225,10 @@ export async function getBillableAppointments(
     return { data: [], error: error.message };
   }
 
-  return { data: (data as any) ?? [], error: null };
+  return {
+    data: (data ?? []) as unknown as BillableAppointment[],
+    error: null,
+  };
 }
 
 // Lấy dịch vụ gốc đã đặt của 1 appointment (bảng `details`) để auto-fill dòng dịch vụ đầu tiên.
@@ -259,7 +279,7 @@ export async function getActiveServices(): Promise<{
     return { data: [], error: error.message };
   }
 
-  return { data: (data as any) ?? [], error: null };
+  return { data: (data ?? []) as unknown as ActiveService[], error: null };
 }
 
 export async function createBill(
@@ -372,7 +392,10 @@ export async function getBillDetail(
   }
 
   return {
-    data: { ...(bill as any), lines: (lines as any) ?? [] },
+    data: {
+      ...(bill as unknown as BillDetail),
+      lines: (lines ?? []) as unknown as BillDetail["lines"],
+    },
     error: null,
   };
 }
@@ -403,4 +426,26 @@ export async function confirmBillPayment(billId: string): Promise<{
 
   revalidatePath("/admin/bills");
   return { data: { id: data.id, status: data.status }, error: null };
+}
+// ============================================================
+// NGƯỜI LẬP (chỉ hiển thị tại thời điểm tạo, KHÔNG lưu vào DB —
+// bảng bills chưa có cột created_by, đã thống nhất với người dùng)
+// ============================================================
+
+export async function getCurrentStaffName(): Promise<string | null> {
+  const supabase = await createAdminAuthClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("fullname")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return profile?.fullname ?? null;
 }

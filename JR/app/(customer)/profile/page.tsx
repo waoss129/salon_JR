@@ -230,7 +230,7 @@ export default function ProfilePage() {
         <button
           onClick={handleSave}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
+          className="w-full bg-stone-800 hover:bg-stone-900 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50"
         >
           {loading ? "Đang lưu..." : "Lưu thay đổi"}
         </button>

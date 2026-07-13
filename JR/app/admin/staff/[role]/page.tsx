@@ -1,12 +1,14 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import StaffListClient from "@/components/admin/StaffListClient";
 import StaffModal from "@/components/admin/StaffModal";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 export default async function RolePage({
   params,
 }: {
   params: Promise<{ role: string }>;
 }) {
+  await requireView("staff");
   const { role } = await params;
   const supabase = await createAdminClient();
 

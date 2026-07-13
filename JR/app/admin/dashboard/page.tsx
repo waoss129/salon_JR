@@ -1,7 +1,21 @@
 // app/admin/dashboard/page.tsx
 import React from "react";
+import { requireView } from "@/lib/supabase/admin-guard";
+import { getDashboardStats, getMonthlyRevenue } from "./queries";
 
-export default function DashboardPage() {
+function formatRevenueShort(value: number) {
+  if (value >= 1_000_000) {
+    return `${Math.round((value / 1_000_000) * 10) / 10}M`;
+  }
+  if (value >= 1_000) {
+    return `${Math.round((value / 1_000) * 10) / 10}K`;
+  }
+  return value.toLocaleString("vi-VN");
+}
+
+export default async function DashboardPage() {
+  await requireView("dashboard");
+
   // Lấy ngày hiện tại thực tế
   const today = new Date().toLocaleDateString("vi-VN", {
     weekday: "long",
@@ -10,15 +24,16 @@ export default function DashboardPage() {
     day: "numeric",
   });
 
-  // Dữ liệu mẫu biểu đồ doanh thu theo tháng
-  const monthlyData = [
-    { month: "Tháng 1", revenue: 45 },
-    { month: "Tháng 2", revenue: 58 },
-    { month: "Tháng 3", revenue: 62 },
-    { month: "Tháng 4", revenue: 78 },
-    { month: "Tháng 5", revenue: 95 },
-    { month: "Tháng 6", revenue: 120 }, // Giả định tháng cao điểm hiện tại
-  ];
+  const currentYear = new Date().getFullYear();
+
+  // Dữ liệu thật từ Supabase (thay cho dữ liệu mẫu trước đây).
+  const [stats, monthlyData] = await Promise.all([
+    getDashboardStats(),
+    getMonthlyRevenue(currentYear),
+  ]);
+
+  // Tỉ lệ chiều cao cột dựa trên giá trị lớn nhất trong năm (tránh chia cho 0).
+  const maxRevenue = Math.max(...monthlyData.map((d) => d.revenue), 1);
 
   return (
     <div className="space-y-6">
@@ -37,7 +52,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Lưới các thẻ thống kê nhanh (Đồng bộ theo Hình 3 & Hình 5) */}
+      {/* Lưới các thẻ thống kê nhanh */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Thẻ 1: Tổng lịch hẹn */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition">
@@ -45,11 +60,10 @@ export default function DashboardPage() {
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Lịch hẹn hôm nay
             </p>
-            <p className="text-4xl font-black text-slate-900 mt-1">12</p>
+            <p className="text-4xl font-black text-slate-900 mt-1">
+              {stats.todayAppointments}
+            </p>
           </div>
-          {/* <div className="p-3.5 bg-blue-50 rounded-xl text-3xl shadow-sm">
-            📅
-          </div> */}
         </div>
 
         {/* Thẻ 2: Khách hàng */}
@@ -58,11 +72,10 @@ export default function DashboardPage() {
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Khách đang làm
             </p>
-            <p className="text-4xl font-black text-slate-900 mt-1">4</p>
+            <p className="text-4xl font-black text-slate-900 mt-1">
+              {stats.todayInProgress}
+            </p>
           </div>
-          {/* <div className="p-3.5 bg-amber-50 rounded-xl text-3xl shadow-sm">
-            👩‍🦰
-          </div> */}
         </div>
 
         {/* Thẻ 3: Doanh thu ước tính */}
@@ -71,11 +84,10 @@ export default function DashboardPage() {
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Doanh thu ước tính
             </p>
-            <p className="text-4xl font-black text-slate-900 mt-1">3.5M</p>
+            <p className="text-4xl font-black text-slate-900 mt-1">
+              {formatRevenueShort(stats.todayRevenueEstimate)}
+            </p>
           </div>
-          {/* <div className="p-3.5 bg-emerald-50 rounded-xl text-3xl shadow-sm">
-            💵
-          </div> */}
         </div>
       </div>
 
@@ -87,33 +99,29 @@ export default function DashboardPage() {
               Biểu đồ doanh thu theo tháng
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Đơn vị tính: Triệu VNĐ (M)
+              Đơn vị tính: Triệu VNĐ (M) — chỉ tính hóa đơn đã thanh toán
             </p>
           </div>
           <span className="text-xs font-bold px-3 py-1 bg-teal-50 text-sky-600 rounded-full border border-teal-200">
-            Năm 2026
+            Năm {currentYear}
           </span>
         </div>
 
         {/* Dựng biểu đồ cột */}
         <div className="w-full bg-slate-50/50 p-4 rounded-xl border border-blue-300 flex flex-col justify-end">
-          {/* Cố định chiều cao vùng chứa cột bằng h-64 và flex items-end */}
           <div className="h-64 w-full flex items-end justify-between px-2 sm:px-8 pt-4 border-b border-blue-300">
             {monthlyData.map((item, index) => {
-              // Tính tỉ lệ phần trăm chiều cao cột dựa trên doanh thu tối đa (120M)
-              const barHeight = `${(item.revenue / 120) * 100}%`;
+              const barHeight = `${(item.revenue / maxRevenue) * 100}%`;
 
               return (
                 <div
                   key={index}
                   className="flex flex-col items-center justify-end h-full flex-1 group max-w-[60px] mx-2"
                 >
-                  {/* Trị số doanh thu xuất hiện khi di chuột qua */}
                   <span className="text-xs font-bold text-blue-400 mb-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {item.revenue}M
                   </span>
 
-                  {/* Cột dữ liệu hình khối với mã màu #6cedef của bạn */}
                   <div
                     className="w-full rounded-t-md shadow-sm transition-all duration-300 group-hover:brightness-95 group-hover:shadow-md"
                     style={{
@@ -126,7 +134,6 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* Nhãn tên tháng dưới chân cột */}
           <div className="flex justify-between px-2 sm:px-8 mt-2 text-xs font-bold text-blue-600">
             {monthlyData.map((item, index) => (
               <div key={index} className="flex-1 text-center max-w-[60px] mx-2">

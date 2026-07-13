@@ -1,12 +1,18 @@
 import { getAppointments } from "./actions";
 import { AppointmentManager } from "@/components/admin/AppointmentManager";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default async function AdminAppointmentsPage() {
-  const date = todayISODate();
+export default async function AdminAppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const params = await searchParams;
+  const date = params.date || todayISODate();
   const appointments = await getAppointments({ date });
 
   return (
