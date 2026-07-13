@@ -1,27 +1,14 @@
--- Cho phép user đã đăng nhập upload vào bucket avatars
-CREATE POLICY "Authenticated users can upload avatars"
-ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'avatars');
+-- Bước 1: Nếu lỡ có dữ liệu cũ mang status 'scheduled' (theo schema cũ),
+-- đổi thành 'assigned' trước khi áp constraint mới, tránh vi phạm ngay lập tức
+update public.schedules
+set status = 'assigned'
+where status = 'scheduled';
 
--- Cho phép user đã đăng nhập cập nhật/ghi đè ảnh trong bucket avatars
-CREATE POLICY "Authenticated users can update avatars"
-ON storage.objects
-FOR UPDATE
-TO authenticated
-USING (bucket_id = 'avatars');
+-- Bước 2: Xoá constraint cũ
+alter table public.schedules
+drop constraint if exists schedules_status_check;
 
--- Cho phép mọi người (kể cả chưa đăng nhập) xem ảnh avatar công khai
-CREATE POLICY "Public can view avatars"
-ON storage.objects
-FOR SELECT
-TO public
-USING (bucket_id = 'avatars');
-
--- Cho phép user đã đăng nhập xoá ảnh trong bucket avatars (nếu cần thay ảnh mới)
-CREATE POLICY "Authenticated users can delete avatars"
-ON storage.objects
-FOR DELETE
-TO authenticated
-USING (bucket_id = 'avatars');
+-- Bước 3: Thêm constraint mới đúng theo type ScheduleStatus trong actions.ts
+alter table public.schedules
+add constraint schedules_status_check
+check (status = any (array['assigned', 'checked_in', 'completed', 'absent', 'cancelled']));

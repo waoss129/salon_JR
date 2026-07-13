@@ -316,7 +316,7 @@ CREATE TABLE IF NOT EXISTS "public"."schedules" (
     "date" "date" NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "status" "text",
-    CONSTRAINT "schedules_status_check" CHECK (("status" = ANY (ARRAY['scheduled'::"text", 'confirmed'::"text", 'checked_in'::"text", 'completed'::"text", 'absent'::"text", 'cancelled'::"text"])))
+    CONSTRAINT "schedules_status_check" CHECK (("status" = ANY (ARRAY['assigned'::"text", 'checked_in'::"text", 'completed'::"text", 'absent'::"text", 'cancelled'::"text"])))
 );
 
 
