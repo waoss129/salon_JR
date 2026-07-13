@@ -109,7 +109,7 @@ SET default_table_access_method = "heap";
 
 
 CREATE TABLE IF NOT EXISTS "public"."appointments" (
-    "schedule_id" "uuid" NOT NULL,
+    "schedule_id" "uuid",
     "customer_id" "uuid" NOT NULL,
     "appointment_date" timestamp without time zone NOT NULL,
     "status" "text",
