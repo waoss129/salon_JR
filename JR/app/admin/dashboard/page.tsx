@@ -1,7 +1,15 @@
 // app/admin/dashboard/page.tsx
 import React from "react";
 import { requireView } from "@/lib/supabase/admin-guard";
-import { getDashboardStats, getMonthlyRevenue } from "./queries";
+import { canView } from "@/lib/supabase/permissions";
+import { createAdminAuthClient } from "@/lib/supabase/server";
+import {
+  getAppointmentStats,
+  getMonthlyRevenue,
+  getTodayRevenueEstimate,
+} from "./queries";
+import LiveClock from "@/components/admin/LiveClock";
+import GreetingBanner from "@/components/admin/GreetingBanner";
 
 function formatRevenueShort(value: number) {
   if (value >= 1_000_000) {
@@ -16,23 +24,47 @@ function formatRevenueShort(value: number) {
 export default async function DashboardPage() {
   await requireView("dashboard");
 
-  // Lấy ngày hiện tại thực tế
+  const supabase = await createAdminAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let roleId: number | null = null;
+  let staffName = "bạn";
+
+  if (user) {
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("role_id, profiles ( fullname )")
+      .eq("id", user.id)
+      .single();
+
+    roleId = (employee as any)?.role_id ?? null;
+    staffName = (employee as any)?.profiles?.fullname ?? "bạn";
+  }
+
+  const hasStatisticsAccess = canView(roleId, "statistics");
+
   const today = new Date().toLocaleDateString("vi-VN", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-
   const currentYear = new Date().getFullYear();
 
-  // Dữ liệu thật từ Supabase (thay cho dữ liệu mẫu trước đây).
-  const [stats, monthlyData] = await Promise.all([
-    getDashboardStats(),
-    getMonthlyRevenue(currentYear),
-  ]);
+  // Thống kê lịch hẹn: an toàn cho MỌI role (không đụng bảng bills).
+  const appointmentStats = await getAppointmentStats();
 
-  // Tỉ lệ chiều cao cột dựa trên giá trị lớn nhất trong năm (tránh chia cho 0).
+  // Doanh thu: CHỈ gọi khi role có quyền statistics (bills RLS không cho
+  // role 4 đọc — cố tình không gọi các hàm này cho role không có quyền).
+  const todayRevenueEstimate = hasStatisticsAccess
+    ? await getTodayRevenueEstimate()
+    : 0;
+  const monthlyData = hasStatisticsAccess
+    ? await getMonthlyRevenue(currentYear)
+    : [];
+
   const maxRevenue = Math.max(...monthlyData.map((d) => d.revenue), 1);
 
   return (
@@ -54,95 +86,105 @@ export default async function DashboardPage() {
 
       {/* Lưới các thẻ thống kê nhanh */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Thẻ 1: Tổng lịch hẹn */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition">
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Lịch hẹn hôm nay
             </p>
             <p className="text-4xl font-black text-slate-900 mt-1">
-              {stats.todayAppointments}
+              {appointmentStats.todayAppointments}
             </p>
           </div>
         </div>
 
-        {/* Thẻ 2: Khách hàng */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition">
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Khách đang làm
             </p>
             <p className="text-4xl font-black text-slate-900 mt-1">
-              {stats.todayInProgress}
+              {appointmentStats.todayInProgress}
             </p>
           </div>
         </div>
 
-        {/* Thẻ 3: Doanh thu ước tính */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Doanh thu ước tính
-            </p>
-            <p className="text-4xl font-black text-slate-900 mt-1">
-              {formatRevenueShort(stats.todayRevenueEstimate)}
-            </p>
+        {hasStatisticsAccess ? (
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Doanh thu ước tính
+              </p>
+              <p className="text-4xl font-black text-slate-900 mt-1">
+                {formatRevenueShort(todayRevenueEstimate)}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Giờ hiện tại
+              </p>
+              <LiveClock />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Khu vực đồ thị doanh thu theo tháng */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-black text-slate-900">
-              Biểu đồ doanh thu theo tháng
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Đơn vị tính: Triệu VNĐ (M) — chỉ tính hóa đơn đã thanh toán
-            </p>
+      {/* Khu vực đồ thị doanh thu theo tháng — chỉ role có quyền statistics.
+          Role khác thấy banner chào + trích dẫn thay thế. */}
+      {hasStatisticsAccess ? (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-black text-slate-900">
+                Biểu đồ doanh thu theo tháng
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Đơn vị tính: Triệu VNĐ (M) — chỉ tính hóa đơn đã thanh toán
+              </p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 bg-teal-50 text-sky-600 rounded-full border border-teal-200">
+              Năm {currentYear}
+            </span>
           </div>
-          <span className="text-xs font-bold px-3 py-1 bg-teal-50 text-sky-600 rounded-full border border-teal-200">
-            Năm {currentYear}
-          </span>
-        </div>
 
-        {/* Dựng biểu đồ cột */}
-        <div className="w-full bg-slate-50/50 p-4 rounded-xl border border-blue-300 flex flex-col justify-end">
-          <div className="h-64 w-full flex items-end justify-between px-2 sm:px-8 pt-4 border-b border-blue-300">
-            {monthlyData.map((item, index) => {
-              const barHeight = `${(item.revenue / maxRevenue) * 100}%`;
+          <div className="w-full bg-slate-50/50 p-4 rounded-xl border border-blue-300 flex flex-col justify-end">
+            <div className="h-64 w-full flex items-end justify-between px-2 sm:px-8 pt-4 border-b border-blue-300">
+              {monthlyData.map((item, index) => {
+                const barHeight = `${(item.revenue / maxRevenue) * 100}%`;
+                return (
+                  <div
+                    key={index}
+                    className="flex flex-col items-center justify-end h-full flex-1 group max-w-[60px] mx-2"
+                  >
+                    <span className="text-xs font-bold text-blue-400 mb-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {item.revenue}M
+                    </span>
+                    <div
+                      className="w-full rounded-t-md shadow-sm transition-all duration-300 group-hover:brightness-95 group-hover:shadow-md"
+                      style={{ height: barHeight, backgroundColor: "#7fbcf2" }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
 
-              return (
+            <div className="flex justify-between px-2 sm:px-8 mt-2 text-xs font-bold text-blue-600">
+              {monthlyData.map((item, index) => (
                 <div
                   key={index}
-                  className="flex flex-col items-center justify-end h-full flex-1 group max-w-[60px] mx-2"
+                  className="flex-1 text-center max-w-[60px] mx-2"
                 >
-                  <span className="text-xs font-bold text-blue-400 mb-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {item.revenue}M
-                  </span>
-
-                  <div
-                    className="w-full rounded-t-md shadow-sm transition-all duration-300 group-hover:brightness-95 group-hover:shadow-md"
-                    style={{
-                      height: barHeight,
-                      backgroundColor: "#7fbcf2",
-                    }}
-                  />
+                  {item.month}
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-between px-2 sm:px-8 mt-2 text-xs font-bold text-blue-600">
-            {monthlyData.map((item, index) => (
-              <div key={index} className="flex-1 text-center max-w-[60px] mx-2">
-                {item.month}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <GreetingBanner staffName={staffName} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createAdminAuthClient } from "@/lib/supabase/server";
 
-export type DashboardStats = {
+export type AppointmentStats = {
   todayAppointments: number;
   todayInProgress: number;
   todayRevenueEstimate: number;
@@ -12,18 +12,18 @@ export type MonthlyRevenuePoint = {
 };
 
 const MONTH_LABELS = [
-  "Tháng 1",
-  "Tháng 2",
-  "Tháng 3",
-  "Tháng 4",
-  "Tháng 5",
-  "Tháng 6",
-  "Tháng 7",
-  "Tháng 8",
-  "Tháng 9",
-  "Tháng 10",
-  "Tháng 11",
-  "Tháng 12",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 function todayRange() {
@@ -48,10 +48,11 @@ function todayRange() {
 }
 
 // ============================================================
-// 3 THẺ THỐNG KÊ NHANH
+// THỐNG KÊ LỊCH HẸN — dùng cho MỌI role (không đụng tới bảng bills,
+// nên không phụ thuộc RLS của bills — an toàn gọi cho mọi role).
 // ============================================================
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getAppointmentStats(): Promise<AppointmentStats> {
   const supabase = await createAdminAuthClient();
   const { start, end } = todayRange();
 
@@ -71,29 +72,31 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     .lte("appointment_date", end)
     .eq("status", "confirmed");
 
+  return {
+    todayAppointments: todayAppointments ?? 0,
+    todayInProgress: todayInProgress ?? 0,
+  };
+}
+
+// ============================================================
+// DOANH THU — chỉ gọi cho role có quyền xem thống kê (bills RLS chỉ
+// cho phép role 1,2,3,5 đọc; KHÔNG gọi các hàm này cho role 4).
+// ============================================================
+
+export async function getTodayRevenueEstimate(): Promise<number> {
+  const supabase = await createAdminAuthClient();
+  const { start, end } = todayRange();
+
   // Doanh thu ước tính hôm nay: tổng total_price của TẤT CẢ bills tạo hôm nay
-  // (kể cả chưa thanh toán — mang tính chất "ước tính", đã thống nhất với người dùng).
+  // (kể cả chưa thanh toán — mang tính chất "ước tính").
   const { data: todayBills } = await supabase
     .from("bills")
     .select("total_price")
     .gte("created_at", start)
     .lte("created_at", end);
 
-  const todayRevenueEstimate = (todayBills ?? []).reduce(
-    (sum, b) => sum + (b.total_price ?? 0),
-    0,
-  );
-
-  return {
-    todayAppointments: todayAppointments ?? 0,
-    todayInProgress: todayInProgress ?? 0,
-    todayRevenueEstimate,
-  };
+  return (todayBills ?? []).reduce((sum, b) => sum + (b.total_price ?? 0), 0);
 }
-
-// ============================================================
-// BIỂU ĐỒ DOANH THU THEO THÁNG
-// ============================================================
 
 export async function getMonthlyRevenue(
   year: number,
@@ -103,9 +106,9 @@ export async function getMonthlyRevenue(
   const start = `${year}-01-01T00:00:00`;
   const end = `${year}-12-31T23:59:59`;
 
-  // Chỉ tính bills đã 'paid' (doanh thu thực tế đã thu), đã thống nhất với người dùng.
+  // Chỉ tính bills đã 'paid' (doanh thu thực tế đã thu).
   // Mốc thời gian dùng updated_at làm xấp xỉ "ngày thanh toán"
-  // — DB chưa có cột paid_at riêng (quy ước đã áp dụng chung với phần hóa đơn).
+  // — DB chưa có cột paid_at riêng.
   const { data, error } = await supabase
     .from("bills")
     .select("total_price, updated_at")

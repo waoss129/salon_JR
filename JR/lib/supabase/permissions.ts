@@ -29,19 +29,20 @@ export const PERMISSIONS: Record<
 
   staff: { view: [1, 2, 3], manage: [1, 2, 3] },
 
-  // Role 5 (lễ tân) chỉ xem, không sửa được khách hàng.
-  customers: { view: [1, 2, 3, 5], manage: [1, 2, 3] },
+  // Role admin, ceo, quản lý, lễ tân được toàn quyền khách hàng.
+  customers: { view: [1, 2, 3, 5], manage: [1, 2, 3, 5] },
 
   services: { view: [1, 2, 3], manage: [1, 2, 3] },
 
   // Role 5 chỉ xem lịch làm việc, không sửa.
-  // Role 4 (beautician) cũng chỉ "xem" ở đây, NHƯNG được phép tự check-in
-  // ca làm việc CỦA CHÍNH MÌNH — đây là quyền theo từng dòng dữ liệu, xem
-  // hàm canCheckInOwnSchedule() bên dưới và ghi chú kèm theo.
+  // Role 4 (beautician) CHỈ được xem lịch của CHÍNH MÌNH (lọc ở tầng query,
+  // không phải toàn bộ lịch), và chỉ được tự check-in — không có quyền
+  // "sửa" nào khác. Đây là quyền theo từng dòng dữ liệu, xem hàm
+  // canCheckInOwnSchedule() bên dưới và ghi chú kèm theo.
   schedules: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3] },
 
-  // Role 4, 5 chỉ xem lịch hẹn, không sửa.
-  appointments: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3] },
+  // Role 4 chỉ xem lịch hẹn, không sửa.
+  appointments: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3, 5] },
 
   // Role 2 (CEO) chỉ xem hóa đơn, không được thêm/sửa.
   bills: { view: [1, 2, 3, 5], manage: [1, 3, 5] },
