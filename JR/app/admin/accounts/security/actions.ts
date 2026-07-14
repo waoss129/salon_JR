@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminAuthClient } from "@/lib/supabase/server";
+import { ROLE } from "@/lib/supabase/permissions";
 
 export async function getCurrentEmail(): Promise<string | null> {
   const supabase = await createAdminAuthClient();
@@ -19,7 +20,33 @@ export async function updateEmail(
   _prevState: SecurityState,
   formData: FormData,
 ): Promise<SecurityState> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Bạn cần đăng nhập lại." };
+  }
+
+  // Chỉ Admin (role 1) được đổi email — kể cả email của chính mình.
+  // Lý do: nhân viên các role khác tự đổi dễ gây nhầm lẫn / mất quyền
+  // đăng nhập (xem thảo luận về phân quyền).
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("role_id")
+    .eq("id", user.id)
+    .single();
+
+  if (employee?.role_id !== ROLE.ADMIN) {
+    return {
+      success: false,
+      message:
+        "Chỉ Admin mới được phép đổi email. Vui lòng liên hệ Admin nếu cần đổi email.",
+    };
+  }
+
   const newEmail = String(formData.get("email") ?? "").trim();
 
   if (!newEmail) {
@@ -47,7 +74,7 @@ export async function updatePassword(
   _prevState: SecurityState,
   formData: FormData,
 ): Promise<SecurityState> {
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const newPassword = String(formData.get("new_password") ?? "");
   const confirmPassword = String(formData.get("confirm_password") ?? "");

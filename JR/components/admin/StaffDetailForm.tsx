@@ -1,15 +1,23 @@
 "use client";
-
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStaff } from "@/app/admin/staff/actions";
+import { canChangeEmail } from "@/lib/supabase/permissions";
 
-export default function StaffDetailForm({ data }: { data: any }) {
+export default function StaffDetailForm({
+  data,
+  viewerRoleId,
+}: {
+  data: any;
+  viewerRoleId: number | null;
+}) {
   const [isPending, startTransition] = useTransition();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+
+  const emailEditable = canChangeEmail(viewerRoleId);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -86,14 +94,35 @@ export default function StaffDetailForm({ data }: { data: any }) {
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
-              Email
+              Email{" "}
+              {!emailEditable && (
+                <span className="normal-case font-normal text-slate-400">
+                  (chỉ Admin được sửa)
+                </span>
+              )}
             </label>
             <input
               name="email"
               defaultValue={data.profiles?.email}
               placeholder="Email"
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              readOnly={!emailEditable}
+              disabled={!emailEditable}
+              className={`border rounded-lg px-3 py-2 w-full text-sm ${
+                !emailEditable
+                  ? "bg-slate-50 text-slate-500 cursor-not-allowed"
+                  : ""
+              }`}
             />
+            {/* Khi bị disabled, input không được submit trong FormData — thêm
+                hidden input để giá trị email cũ vẫn được gửi lên, tránh bị
+                hiểu nhầm là "xóa email" ở server action. */}
+            {!emailEditable && (
+              <input
+                type="hidden"
+                name="email"
+                value={data.profiles?.email ?? ""}
+              />
+            )}
           </div>
 
           <div>

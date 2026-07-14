@@ -1,12 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import CustomerForm from "@/components/admin/CustomerDetailForm";
 import { updateCustomer } from "../actions";
+import { requireView } from "@/lib/supabase/admin-guard";
 
 export default async function CustomerDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireView("customers");
+
   const { id } = await params;
   const supabase = await createAdminClient();
 

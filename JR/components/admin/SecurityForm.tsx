@@ -41,8 +41,10 @@ function Alert({ success, message }: { success: boolean; message: string }) {
 
 export default function SecurityForm({
   currentEmail,
+  canEditEmail,
 }: {
   currentEmail: string;
+  canEditEmail: boolean;
 }) {
   const [emailState, emailAction] = useActionState(updateEmail, {
     success: false,
@@ -58,30 +60,50 @@ export default function SecurityForm({
 
   return (
     <div className="space-y-10">
-      {/* --- Đổi email --- */}
+      {/* --- Email --- */}
       <section>
         <h2 className="mb-4 text-base font-semibold text-gray-900">Email</h2>
-        <form action={emailAction} className="space-y-4">
-          <Alert success={emailState.success} message={emailState.message} />
+
+        {canEditEmail ? (
+          <form action={emailAction} className="space-y-4">
+            <Alert success={emailState.success} message={emailState.message} />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Địa chỉ email
+              </label>
+              <input
+                type="email"
+                name="email"
+                defaultValue={currentEmail}
+                required
+                className="input"
+              />
+            </div>
+            <div className="flex justify-end">
+              <SubmitButton
+                label="Cập nhật email"
+                pendingLabel="Đang cập nhật..."
+              />
+            </div>
+          </form>
+        ) : (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
               Địa chỉ email
             </label>
             <input
               type="email"
-              name="email"
-              defaultValue={currentEmail}
-              required
-              className="input"
+              value={currentEmail}
+              disabled
+              readOnly
+              className="input bg-gray-50 text-gray-400"
             />
+            <p className="mt-1.5 text-xs text-gray-400">
+              Chỉ Admin mới có thể đổi email. Liên hệ Admin nếu bạn cần cập
+              nhật.
+            </p>
           </div>
-          <div className="flex justify-end">
-            <SubmitButton
-              label="Cập nhật email"
-              pendingLabel="Đang cập nhật..."
-            />
-          </div>
-        </form>
+        )}
       </section>
 
       <hr className="border-gray-200" />

@@ -1,8 +1,46 @@
 "use server";
-import { createAdminClient } from "@/lib/supabase/server";
+import {
+  createAdminClient,
+  createAdminAuthClient,
+} from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { ROLE } from "@/lib/supabase/permissions";
+
+const CUSTOMER_MANAGER_ROLE_IDS: number[] = [
+  ROLE.ADMIN,
+  ROLE.CEO,
+  ROLE.MANAGER,
+  ROLE.RECEPTIONIST,
+];
+
+// createAdminClient() dùng SERVICE ROLE KEY, bỏ qua hoàn toàn RLS — mọi hàm
+// bên dưới PHẢI tự kiểm tra quyền qua hàm này trước khi đọc/ghi dữ liệu.
+async function requireCustomerManager(): Promise<number> {
+  const authClient = await createAdminAuthClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    throw new Error("Bạn cần đăng nhập lại.");
+  }
+
+  const { data: employee } = await authClient
+    .from("employees")
+    .select("role_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!employee || !CUSTOMER_MANAGER_ROLE_IDS.includes(employee.role_id)) {
+    throw new Error("Bạn không có quyền quản lý khách hàng.");
+  }
+
+  return employee.role_id as number;
+}
 
 export async function addCustomer(formData: FormData) {
+  await requireCustomerManager();
+
   const supabase = await createAdminClient();
 
   const email = ((formData.get("email") as string) || "").trim();
@@ -41,6 +79,8 @@ export async function addCustomer(formData: FormData) {
 }
 
 export async function updateCustomer(id: string, formData: FormData) {
+  await requireCustomerManager();
+
   const supabase = await createAdminClient();
 
   const file = formData.get("avatar") as File | null;
@@ -118,6 +158,8 @@ export async function updateCustomer(id: string, formData: FormData) {
 }
 
 export async function updateCustomerStatus(id: string, status: string) {
+  await requireCustomerManager();
+
   const supabase = await createAdminClient();
 
   const { error } = await supabase
@@ -131,6 +173,8 @@ export async function updateCustomerStatus(id: string, status: string) {
 }
 
 export async function deleteCustomer(id: string) {
+  await requireCustomerManager();
+
   const supabase = await createAdminClient();
 
   const { error: custError } = await supabase

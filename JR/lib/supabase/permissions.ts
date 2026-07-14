@@ -87,3 +87,9 @@ export function canManage(roleId: number | null, feature: Feature): boolean {
 export function canCheckInOwnSchedule(roleId: number | null): boolean {
   return roleId === ROLE.BEAUTICIAN;
 }
+// Chỉ Admin (role 1) được đổi email — của chính mình lẫn của nhân viên khác.
+// Áp dụng ở UI (ẩn/disable ô email khi không phải Admin) VÀ ở server action
+// updateStaff() (đã thêm kiểm tra tương ứng trong app/admin/staff/actions.ts).
+export function canChangeEmail(roleId: number | null): boolean {
+  return roleId === ROLE.ADMIN;
+}
