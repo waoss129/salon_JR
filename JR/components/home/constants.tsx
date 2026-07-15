@@ -20,7 +20,7 @@ export const GRID_DISPLAY_CONFIG = {
   },
   spa: {
     tag: "Therapy Spa",
-    title: "Gội Dưỡng Sinh Chữa Lành",
+    title: "Trị Liệu & Dưỡng Sinh",
     folder: "spa",
     textColor: "text-emerald-400",
     borderColor: "border-[#E1FAD4]/60",

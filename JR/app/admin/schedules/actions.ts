@@ -112,13 +112,15 @@ export async function getEmployees(roleId?: number): Promise<EmployeeOption[]> {
 
 /**
  * Lấy lịch làm việc trong khoảng ngày (dùng cho lịch tuần), có thể lọc theo
- * vai trò và tìm theo tên nhân viên.
+ * vai trò, tìm theo tên nhân viên, hoặc CHỈ lấy lịch của 1 nhân viên cụ thể
+ * (dùng cho role 4 — mỗi người chỉ được xem lịch của chính mình).
  */
 export async function getSchedules(params: {
   weekStart: string;
   weekEnd: string;
   roleId?: number;
   search?: string;
+  onlyEmployeeId?: string;
 }) {
   const supabase = await createAdminAuthClient();
 
@@ -142,6 +144,10 @@ export async function getSchedules(params: {
 
   if (params.roleId && EMPLOYEE_ROLE_IDS.includes(params.roleId)) {
     query = query.eq("employee.role_id", params.roleId);
+  }
+
+  if (params.onlyEmployeeId) {
+    query = query.eq("employee_id", params.onlyEmployeeId);
   }
 
   const { data, error } = await query;
@@ -217,23 +223,79 @@ export async function createSchedules(input: {
   const { error } = await supabase.from("schedules").insert(rows);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/admin/schedule");
+  revalidatePath("/admin/schedules");
 }
 
 /**
- * Cập nhật trạng thái 1 lịch làm việc (vd: huỷ ca, đánh dấu vắng mặt)
+ * Cập nhật trạng thái 1 lịch làm việc (vd: huỷ ca, đánh dấu vắng mặt,
+ * hoặc beautician tự check-in/check-out ca của chính mình).
+ *
+ * Quyền hạn:
+ *  - role 1, 2, 3: sửa được mọi lịch, mọi trạng thái.
+ *  - role 4 (beautician): CHỈ được sửa lịch có employee_id = chính mình,
+ *    và chỉ được chuyển sang 'checked_in' hoặc 'completed' (không được tự
+ *    đánh dấu vắng mặt/huỷ ca của mình).
+ *  - role khác (vd 5): không được gọi hàm này.
+ *
+ * Lưu ý: đây là lớp kiểm tra ở tầng ứng dụng — nên đi kèm với RLS tương ứng
+ * trên bảng `schedules` (xem migration admin_rls_policies.sql) làm lớp bảo
+ * vệ thứ 2, không thay thế cho nhau.
  */
 export async function updateScheduleStatus(
   scheduleId: string,
   status: ScheduleStatus,
 ) {
   const supabase = await createAdminAuthClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Chưa đăng nhập");
+
+  const { data: employee, error: employeeError } = await supabase
+    .from("employees")
+    .select("role_id")
+    .eq("id", user.id)
+    .single();
+
+  if (employeeError || !employee) {
+    throw new Error("Không xác định được vai trò người dùng");
+  }
+
+  const roleId = employee.role_id;
+  const MANAGER_ROLE_IDS = [1, 2, 3];
+
+  if (!MANAGER_ROLE_IDS.includes(roleId)) {
+    if (roleId !== 4) {
+      throw new Error("Bạn không có quyền cập nhật lịch làm việc");
+    }
+
+    // Role 4: chỉ được sửa đúng lịch của chính mình.
+    const { data: schedule, error: scheduleError } = await supabase
+      .from("schedules")
+      .select("employee_id")
+      .eq("id", scheduleId)
+      .single();
+
+    if (scheduleError || !schedule) {
+      throw new Error("Không tìm thấy lịch làm việc");
+    }
+    if (schedule.employee_id !== user.id) {
+      throw new Error("Bạn chỉ được check-in lịch làm việc của chính mình");
+    }
+    if (!["checked_in", "completed"].includes(status)) {
+      throw new Error(
+        "Bạn chỉ được chuyển trạng thái sang 'Đang làm' hoặc 'Hoàn thành'",
+      );
+    }
+  }
+
   const { error } = await supabase
     .from("schedules")
     .update({ status })
     .eq("id", scheduleId);
   if (error) throw new Error(error.message);
-  revalidatePath("/admin/schedule");
+  revalidatePath("/admin/schedules");
 }
 
 /**
@@ -246,5 +308,5 @@ export async function deleteSchedule(scheduleId: string) {
     .delete()
     .eq("id", scheduleId);
   if (error) throw new Error(error.message);
-  revalidatePath("/admin/schedule");
+  revalidatePath("/admin/schedules");
 }

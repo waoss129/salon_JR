@@ -1,6 +1,7 @@
 import { getEmployees, getRoles, getSchedules, getSessions } from "./actions";
 import { ScheduleManager } from "@/components/admin/ScheduleManager";
 import { requireView } from "@/lib/supabase/admin-guard";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 
 function getCurrentWeekRange() {
   const now = new Date();
@@ -15,13 +16,41 @@ function getCurrentWeekRange() {
 }
 
 export default async function AdminSchedulePage() {
+  await requireView("schedules");
+
+  const supabase = await createAdminAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let viewerRoleId: number | null = null;
+  let viewerEmployeeId: string | null = null;
+
+  if (user) {
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("role_id")
+      .eq("id", user.id)
+      .single();
+    viewerRoleId = employee?.role_id ?? null;
+    viewerEmployeeId = user.id;
+  }
+
+  // Role 4 (Beautician): chỉ được xem đúng lịch của chính mình.
+  const isSelfServiceOnly = viewerRoleId === 4;
+
   const { weekStart, weekEnd } = getCurrentWeekRange();
 
   const [sessions, roles, employees, schedules] = await Promise.all([
     getSessions(),
     getRoles(),
     getEmployees(),
-    getSchedules({ weekStart, weekEnd }),
+    getSchedules({
+      weekStart,
+      weekEnd,
+      onlyEmployeeId:
+        isSelfServiceOnly && viewerEmployeeId ? viewerEmployeeId : undefined,
+    }),
   ]);
 
   return (
@@ -34,6 +63,8 @@ export default async function AdminSchedulePage() {
         employees={employees}
         initialWeekStart={weekStart}
         initialWeekEnd={weekEnd}
+        viewerRoleId={viewerRoleId}
+        viewerEmployeeId={viewerEmployeeId}
       />
     </div>
   );

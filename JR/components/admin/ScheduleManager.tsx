@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import {
   getSchedules,
+  updateScheduleStatus,
   type EmployeeOption,
   type SessionRow,
   type ScheduleStatus,
 } from "@/app/admin/schedules/actions";
 import { AddScheduleForm } from "./ScheduleForm";
+import { canManage } from "@/lib/supabase/permissions";
 
 type Role = { id: number; role_name: string };
 
@@ -44,6 +46,8 @@ export function ScheduleManager({
   employees,
   initialWeekStart,
   initialWeekEnd,
+  viewerRoleId,
+  viewerEmployeeId,
 }: {
   initialSchedules: ScheduleRow[];
   sessions: SessionRow[];
@@ -51,6 +55,8 @@ export function ScheduleManager({
   employees: EmployeeOption[];
   initialWeekStart: string;
   initialWeekEnd: string;
+  viewerRoleId?: number | null;
+  viewerEmployeeId?: string | null;
 }) {
   const [schedules, setSchedules] = useState<ScheduleRow[]>(initialSchedules);
   const [weekStart, setWeekStart] = useState(initialWeekStart);
@@ -59,6 +65,13 @@ export function ScheduleManager({
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Role 4 (Beautician): chỉ xem + check-in lịch của chính mình, không có
+  // bộ lọc, không thêm được lịch.
+  const isSelfServiceOnly = viewerRoleId === 4;
+  const canAddSchedule = canManage(viewerRoleId ?? null, "schedules");
 
   // Danh sách nhân viên cho form Thêm lịch phải khớp với bộ lọc vai trò
   // đang chọn ở ngoài — nếu không lọc ở đây, form sẽ luôn hiện cả 3 role
@@ -86,6 +99,8 @@ export function ScheduleManager({
         weekEnd: nextWeekEnd,
         roleId: nextRoleId || undefined,
         search: nextSearch || undefined,
+        onlyEmployeeId:
+          isSelfServiceOnly && viewerEmployeeId ? viewerEmployeeId : undefined,
       });
       setSchedules(data as ScheduleRow[]);
     });
@@ -99,93 +114,212 @@ export function ScheduleManager({
     refresh(roleId, search, nextStart, nextEnd);
   }
 
+  async function handleCheckIn(scheduleId: string, nextStatus: ScheduleStatus) {
+    setActionError(null);
+    setCheckingInId(scheduleId);
+    try {
+      await updateScheduleStatus(scheduleId, nextStatus);
+      refresh(roleId, search);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Không thể cập nhật trạng thái",
+      );
+    } finally {
+      setCheckingInId(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          placeholder="Tìm theo tên nhân viên"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            refresh(roleId, e.target.value);
-          }}
-          className="border rounded px-2 py-1.5 text-sm flex-1 min-w-[180px]"
-        />
-        <select
-          value={roleId}
-          onChange={(e) => {
-            const value = e.target.value ? Number(e.target.value) : "";
-            setRoleId(value);
-            refresh(value, search);
-          }}
-          className="border rounded px-2 py-1.5 text-sm"
-        >
-          <option value="">Tất cả vai trò</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.role_name}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={() => goToWeek(-1)}
-          className="border rounded px-2 py-1.5 text-sm"
-          aria-label="Tuần trước"
-        >
-          &lsaquo;
-        </button>
-        <span className="text-sm text-gray-500 whitespace-nowrap">
-          {weekStart} - {weekEnd}
-        </span>
-        <button
-          onClick={() => goToWeek(1)}
-          className="border rounded px-2 py-1.5 text-sm"
-          aria-label="Tuần sau"
-        >
-          &rsaquo;
-        </button>
-        <button
-          onClick={() => setShowForm(true)}
-          className="ml-auto bg-black text-white rounded px-3 py-1.5 text-sm"
-        >
-          + Thêm lịch
-        </button>
-      </div>
+      {!isSelfServiceOnly && (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            placeholder="Tìm theo tên nhân viên"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              refresh(roleId, e.target.value);
+            }}
+            className="border rounded px-2 py-1.5 text-sm flex-1 min-w-[180px]"
+          />
+          <select
+            value={roleId}
+            onChange={(e) => {
+              const value = e.target.value ? Number(e.target.value) : "";
+              setRoleId(value);
+              refresh(value, search);
+            }}
+            className="border rounded px-2 py-1.5 text-sm"
+          >
+            <option value="">Tất cả vai trò</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.role_name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => goToWeek(-1)}
+            className="border rounded px-2 py-1.5 text-sm"
+            aria-label="Tuần trước"
+          >
+            &lsaquo;
+          </button>
+          <span className="text-sm text-gray-500 whitespace-nowrap">
+            {weekStart} - {weekEnd}
+          </span>
+          <button
+            onClick={() => goToWeek(1)}
+            className="border rounded px-2 py-1.5 text-sm"
+            aria-label="Tuần sau"
+          >
+            &rsaquo;
+          </button>
+          {canAddSchedule && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="ml-auto bg-black text-white rounded px-3 py-1.5 text-sm"
+            >
+              + Thêm lịch
+            </button>
+          )}
+        </div>
+      )}
+
+      {isSelfServiceOnly && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => goToWeek(-1)}
+            className="border rounded px-2 py-1.5 text-sm"
+            aria-label="Tuần trước"
+          >
+            &lsaquo;
+          </button>
+          <span className="text-sm text-gray-500 whitespace-nowrap">
+            Lịch làm việc của bạn — {weekStart} - {weekEnd}
+          </span>
+          <button
+            onClick={() => goToWeek(1)}
+            className="border rounded px-2 py-1.5 text-sm"
+            aria-label="Tuần sau"
+          >
+            &rsaquo;
+          </button>
+        </div>
+      )}
+
+      {actionError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2.5">
+          {actionError}
+        </p>
+      )}
 
       <table className="w-full text-sm border rounded overflow-hidden">
         <thead className="bg-gray-50">
           <tr>
-            <th className="text-left p-2">Nhân viên</th>
-            <th className="text-left p-2">Vai trò</th>
+            {!isSelfServiceOnly && <th className="text-left p-2">Nhân viên</th>}
+            {!isSelfServiceOnly && <th className="text-left p-2">Vai trò</th>}
             <th className="text-left p-2">Ngày</th>
             <th className="text-left p-2">Ca</th>
             <th className="text-left p-2">Trạng thái</th>
+            {(isSelfServiceOnly || canAddSchedule) && (
+              <th className="text-left p-2">Hành động</th>
+            )}
           </tr>
         </thead>
         <tbody>
           {isPending && (
             <tr>
-              <td colSpan={5} className="p-3 text-center text-gray-400">
+              <td
+                colSpan={
+                  isSelfServiceOnly || canAddSchedule
+                    ? isSelfServiceOnly
+                      ? 4
+                      : 6
+                    : 5
+                }
+                className="p-3 text-center text-gray-400"
+              >
                 Đang tải...
               </td>
             </tr>
           )}
           {!isPending && schedules.length === 0 && (
             <tr>
-              <td colSpan={5} className="p-3 text-center text-gray-400">
-                Chưa có lịch làm việc nào trong tuần này
+              <td
+                colSpan={
+                  isSelfServiceOnly || canAddSchedule
+                    ? isSelfServiceOnly
+                      ? 4
+                      : 6
+                    : 5
+                }
+                className="p-3 text-center text-gray-400"
+              >
+                {isSelfServiceOnly
+                  ? "Bạn chưa được xếp lịch làm việc trong tuần này"
+                  : "Chưa có lịch làm việc nào trong tuần này"}
               </td>
             </tr>
           )}
           {!isPending &&
             schedules.map((s) => (
               <tr key={s.id} className="border-t">
-                <td className="p-2">{s.employee?.profile?.fullname ?? "—"}</td>
-                <td className="p-2">{s.employee?.roles?.role_name ?? "—"}</td>
+                {!isSelfServiceOnly && (
+                  <td className="p-2">
+                    {s.employee?.profile?.fullname ?? "—"}
+                  </td>
+                )}
+                {!isSelfServiceOnly && (
+                  <td className="p-2">{s.employee?.roles?.role_name ?? "—"}</td>
+                )}
                 <td className="p-2">{s.date}</td>
                 <td className="p-2">{s.session?.name ?? "—"}</td>
                 <td className="p-2">{STATUS_LABEL[s.status]}</td>
+                {isSelfServiceOnly && (
+                  <td className="p-2">
+                    {s.status === "assigned" && (
+                      <button
+                        onClick={() => handleCheckIn(s.id, "checked_in")}
+                        disabled={checkingInId === s.id}
+                        className="bg-black text-white rounded px-3 py-1.5 text-xs disabled:opacity-50"
+                      >
+                        {checkingInId === s.id ? "Đang xử lý..." : "Check-in"}
+                      </button>
+                    )}
+                    {s.status === "checked_in" && (
+                      <button
+                        onClick={() => handleCheckIn(s.id, "completed")}
+                        disabled={checkingInId === s.id}
+                        className="bg-emerald-600 text-white rounded px-3 py-1.5 text-xs disabled:opacity-50"
+                      >
+                        {checkingInId === s.id ? "Đang xử lý..." : "Hoàn thành"}
+                      </button>
+                    )}
+                    {!["assigned", "checked_in"].includes(s.status) && (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+                )}
+                {!isSelfServiceOnly && canAddSchedule && (
+                  <td className="p-2">
+                    <select
+                      value={s.status}
+                      disabled={checkingInId === s.id}
+                      onChange={(e) =>
+                        handleCheckIn(s.id, e.target.value as ScheduleStatus)
+                      }
+                      className="border rounded px-2 py-1 text-xs disabled:opacity-50"
+                    >
+                      {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                )}
               </tr>
             ))}
         </tbody>
