@@ -1,58 +1,28 @@
 "use client";
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-
-const getVietnameseLoginError = (message: string): string => {
-  const msg = message.toLowerCase();
-  if (msg.includes("invalid login credentials")) {
-    return "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.";
-  }
-  if (msg.includes("email not confirmed")) {
-    return "Tài khoản chưa được xác nhận Email. Vui lòng kiểm tra hộp thư của bạn.";
-  }
-  if (msg.includes("network error") || msg.includes("failed to fetch")) {
-    return "Lỗi kết nối mạng. Không thể liên kết với máy chủ.";
-  }
-  return `Đăng nhập không thành công: ${message}`;
-};
+import { loginWithPhone } from "./actions";
 
 export default function LoginPage() {
-  const supabase = createClient();
-
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    startTransition(async () => {
+      try {
+        await loginWithPhone(phone, password);
+        window.location.href = "/";
+      } catch (err: any) {
+        setError(
+          err?.message || "Đăng nhập không thành công, vui lòng thử lại.",
+        );
+      }
     });
-
-    if (error) {
-      alert(getVietnameseLoginError(error.message));
-      return;
-    }
-
-    // Kiểm tra tài khoản có bị khoá không, ngay sau khi đăng nhập thành công
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("status")
-      .eq("id", data.user.id)
-      .single();
-
-    if (customer?.status === "banned") {
-      await supabase.auth.signOut();
-      alert(
-        "Tài khoản của bạn đã bị khoá, vui lòng liên hệ JoyRide để được hỗ trợ",
-      );
-      return;
-    }
-
-    console.log("Đăng nhập thành công", data.session);
-    window.location.href = "/";
   };
 
   return (
@@ -67,17 +37,23 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl p-3">
+            {error}
+          </p>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
-              Email
+              Số điện thoại
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none text-stone-800"
-              placeholder="name@email.com"
+              placeholder="0912345678"
               required
             />
           </div>
@@ -97,9 +73,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-all shadow-md mt-2"
+            disabled={isPending}
+            className="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-all shadow-md mt-2 disabled:opacity-50"
           >
-            ĐĂNG NHẬP ✨
+            {isPending ? "Đang đăng nhập..." : "ĐĂNG NHẬP"}
           </button>
           <div className="text-right">
             <Link

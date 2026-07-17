@@ -63,10 +63,10 @@ export default async function StaffPage() {
 
             <div className="space-y-3 text-sm text-stone-600 bg-stone-50 p-4 rounded-xl">
               <p>
-                ✨ Cấp bậc: <strong>{staff.level || "Đang cập nhật"}</strong>
+                Cấp bậc: <strong>{staff.level || "Đang cập nhật"}</strong>
               </p>
               <p>
-                🎓 Chứng nhận:{" "}
+                Chứng nhận:{" "}
                 <strong>{staff.certificate_name || "Đang cập nhật"}</strong>
               </p>
             </div>

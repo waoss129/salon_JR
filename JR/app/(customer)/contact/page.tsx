@@ -10,14 +10,13 @@ export default function ContactPage() {
             </h2>
             <div className="space-y-4 text-stone-600">
               <p>
-                📍 <strong>Địa chỉ:</strong> 180 Cao Lỗ, Phường Chánh Hưng, TP.
-                HCM
+                <strong>Địa chỉ:</strong> 180 Cao Lỗ, Phường Chánh Hưng, TP. HCM
               </p>
               <p>
-                📞 <strong>Hotline:</strong> 1900 1234
+                <strong>Hotline:</strong> (84.28) 3850 5520
               </p>
               <p>
-                ✉️ <strong>Email:</strong> hello@joyridebeauty.com
+                <strong>Email:</strong> joyridebeauty@gmail.com
               </p>
             </div>
           </div>
@@ -86,7 +85,7 @@ export default function ContactPage() {
               type="submit"
               className="w-full bg-pink-300 hover:bg-pink-400 text-white font-bold py-4 rounded-xl transition-all shadow-md"
             >
-              GỬI LỜI NHẮN ✨
+              GỬI LỜI NHẮN
             </button>
           </form>
         </div>

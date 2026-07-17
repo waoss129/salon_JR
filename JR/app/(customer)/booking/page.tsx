@@ -106,7 +106,7 @@ function BookingContent() {
           />
           {isSunday && (
             <p className="text-orange-500 text-sm mt-3 font-medium bg-orange-50 p-3 rounded-lg border border-orange-100">
-              🌸 Chủ Nhật JoyRide tạm nghỉ để nạp năng lượng xinh đẹp, bạn chọn
+              Chủ Nhật JoyRide tạm nghỉ để nạp năng lượng xinh đẹp, bạn chọn
               ngày khác giúp mình nha!
             </p>
           )}
@@ -144,7 +144,7 @@ function BookingContent() {
             onChange={(e) => setNote(e.target.value)}
             className="w-full p-4 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
             rows={3}
-            placeholder="Gửi tụi mình một vài yêu cầu nhỏ để JoyRide chuẩn bị chu đáo nhất cho bạn nha!✨"
+            placeholder="Gửi tụi mình một vài yêu cầu nhỏ để JoyRide chuẩn bị chu đáo nhất cho bạn nha!"
           />
         </div>
 
@@ -157,7 +157,7 @@ function BookingContent() {
 
       <div className="bg-orange-50/50 p-8 rounded-3xl border-2 border-dashed border-orange-100 sticky top-24">
         <h3 className="text-xl font-bold mb-6 text-orange-800 flex items-center gap-2">
-          🎟️ Vé hành trình
+          Vé hành trình
         </h3>
         <div className="space-y-4 text-orange-800">
           <p className="flex justify-between">

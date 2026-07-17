@@ -81,9 +81,7 @@ export default async function StatisticsPage({
             <thead>
               <tr className="border-b border-gray-100 text-left text-gray-500">
                 <th className="py-2 pr-4 font-medium">Dịch vụ</th>
-                <th className="py-2 pr-4 text-center font-medium">
-                  Số lượt bán
-                </th>
+                <th className="py-2 pr-4 text-center font-medium">Số lượt</th>
                 <th className="py-2 text-right font-medium">Doanh thu</th>
               </tr>
             </thead>

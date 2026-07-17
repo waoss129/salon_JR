@@ -67,13 +67,14 @@ export default function UserDropdown() {
   }
 
   return (
-    <div className="relative inline-block text-left">
+    <div className="relative inline-block text-left w-full sm:w-auto">
       {/* Nút bấm hiển thị lời chào tên khách hàng */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-pink-500 font-bold hover:opacity-80 transition-all flex items-center gap-1 focus:outline-none"
+        className="text-pink-500 font-bold hover:opacity-80 transition-all flex items-center gap-1 focus:outline-none max-w-full"
       >
-        Hi, {customerName} ▼
+        <span className="truncate">Hi, {customerName}</span>
+        <span className="flex-shrink-0">▼</span>
       </button>
 
       {/* Menu thả xuống (Dropdown Options) */}
@@ -83,7 +84,7 @@ export default function UserDropdown() {
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-stone-100 shadow-xl py-2 z-20 space-y-1">
+          <div className="absolute right-0 mt-2 w-48 max-w-[80vw] bg-white rounded-2xl border border-stone-100 shadow-xl py-2 z-20 space-y-1">
             <Link
               href="/profile"
               onClick={() => setIsOpen(false)}

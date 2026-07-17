@@ -7,7 +7,7 @@ export const GRID_DISPLAY_CONFIG = {
     textColor: "text-pink-400",
     borderColor: "border-[#FBBFDC]/40",
     glowShadow: "shadow-[0_20px_50px_-12px_rgba(251,191,220,0.55)]",
-    extraClass: "",
+    extraClass: "col-span-2 sm:col-span-1",
   },
   nail: {
     tag: "Nail Art",
@@ -16,7 +16,7 @@ export const GRID_DISPLAY_CONFIG = {
     textColor: "text-[#99DDF0]",
     borderColor: "border-[#CFECF3]/50",
     glowShadow: "shadow-[0_20px_50px_-12px_rgba(153,221,240,0.55)]",
-    extraClass: "sm:translate-y-6",
+    extraClass: "col-span-2 sm:col-span-1 sm:translate-y-6",
   },
   spa: {
     tag: "Therapy Spa",

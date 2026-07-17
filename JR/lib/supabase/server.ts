@@ -17,9 +17,17 @@ export async function createClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {
+            // setAll được gọi từ 1 Server Component (không phải Server Action/
+            // Route Handler) — Next.js không cho phép ghi cookie ở đây. Bỏ qua
+            // có chủ đích: middleware.ts đã tự lo refresh session trên mọi
+            // request rồi, nên Server Component không refresh được cũng
+            // không sao, phiên đăng nhập vẫn đúng ở tầng middleware.
+          }
         },
       },
     },
@@ -41,9 +49,13 @@ export async function createAdminAuthClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {
+            // Lý do bỏ qua giống hệt createClient() ở trên.
+          }
         },
       },
     },

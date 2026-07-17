@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStaff } from "@/app/admin/staff/actions";
-import { canChangeEmail } from "@/lib/supabase/permissions";
+import { ROLE } from "@/lib/supabase/permissions";
 
 export default function StaffDetailForm({
   data,
@@ -17,7 +17,9 @@ export default function StaffDetailForm({
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
-  const emailEditable = canChangeEmail(viewerRoleId);
+  // Chỉ chuyên viên (Beautician, role_id = 4) mới cần "Cấp bậc" — quản lý
+  // (3) và lễ tân (5) không có khái niệm này.
+  const showLevel = data.role_id === ROLE.BEAUTICIAN;
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -94,35 +96,14 @@ export default function StaffDetailForm({
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
-              Email{" "}
-              {!emailEditable && (
-                <span className="normal-case font-normal text-slate-400">
-                  (chỉ Admin được sửa)
-                </span>
-              )}
+              Email
             </label>
-            <input
-              name="email"
-              defaultValue={data.profiles?.email}
-              placeholder="Email"
-              readOnly={!emailEditable}
-              disabled={!emailEditable}
-              className={`border rounded-lg px-3 py-2 w-full text-sm ${
-                !emailEditable
-                  ? "bg-slate-50 text-slate-500 cursor-not-allowed"
-                  : ""
-              }`}
-            />
-            {/* Khi bị disabled, input không được submit trong FormData — thêm
-                hidden input để giá trị email cũ vẫn được gửi lên, tránh bị
-                hiểu nhầm là "xóa email" ở server action. */}
-            {!emailEditable && (
-              <input
-                type="hidden"
-                name="email"
-                value={data.profiles?.email ?? ""}
-              />
-            )}
+            {/* Không phải input — email bị khoá tuyệt đối sau khi nhân viên
+                kích hoạt tài khoản, không ai (kể cả Admin) sửa được qua giao
+                diện. Chỉ hiển thị để tham khảo. */}
+            <div className="border rounded-lg px-3 py-2 w-full text-sm bg-slate-50 text-slate-500">
+              {data.profiles?.email || "Chưa kích hoạt tài khoản"}
+            </div>
           </div>
 
           <div>
@@ -194,7 +175,9 @@ export default function StaffDetailForm({
         <h3 className="text-base font-bold text-slate-900 mb-4 pt-2 border-t border-slate-100">
           Thông tin công việc
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div
+          className={`grid grid-cols-1 gap-4 ${showLevel ? "md:grid-cols-3" : "md:grid-cols-2"}`}
+        >
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
               Ngày vào làm
@@ -217,17 +200,19 @@ export default function StaffDetailForm({
               className="border rounded-lg px-3 py-2 w-full text-sm"
             />
           </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
-              Cấp bậc
-            </label>
-            <input
-              name="level"
-              defaultValue={data.level}
-              placeholder="Cấp bậc"
-              className="border rounded-lg px-3 py-2 w-full text-sm"
-            />
-          </div>
+          {showLevel && (
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+                Cấp bậc
+              </label>
+              <input
+                name="level"
+                defaultValue={data.level}
+                placeholder="Cấp bậc"
+                className="border rounded-lg px-3 py-2 w-full text-sm"
+              />
+            </div>
+          )}
         </div>
       </div>
 

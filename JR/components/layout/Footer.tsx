@@ -10,8 +10,8 @@ import {
 
 const Footer = () => {
   return (
-    <footer className="bg-white py-12 border-t border-gray-100">
-      <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-12">
+    <footer className="bg-white py-10 sm:py-12 border-t border-gray-100">
+      <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12">
         {/* Cột trái: Thông tin liên hệ */}
         <div>
           <h3 className="text-lg font-bold uppercase mb-4">
@@ -32,7 +32,7 @@ const Footer = () => {
           </Link>
         </div>
 
-        {/* Cột 2: THÔNG TIN (MỚI) */}
+        {/* Cột 2: THÔNG TIN */}
         <div>
           <h3 className="text-lg font-bold uppercase mb-4">THÔNG TIN</h3>
           <ul className="space-y-2 text-gray-600">
@@ -54,7 +54,8 @@ const Footer = () => {
           <h3 className="text-lg font-bold uppercase mb-4">
             DỊCH VỤ KHÁCH HÀNG
           </h3>
-          <ul className="space-y-2 text-gray-600 text-right mb-6">
+          {/* Căn trái trên mobile (dễ đọc khi xếp dọc), căn phải khi đủ chỗ ở md+ */}
+          <ul className="space-y-2 text-gray-600 text-left md:text-right mb-6">
             <li>
               <Link href="/contact" className="hover:underline">
                 Liên hệ với chúng tôi
@@ -73,7 +74,7 @@ const Footer = () => {
             </li>
           </ul>
 
-          {/* Social Icons được đưa vào đây */}
+          {/* Social Icons */}
           <div className="flex space-x-3">
             {[
               { icon: FaFacebookF, link: "#" },
@@ -95,7 +96,7 @@ const Footer = () => {
       </div>
 
       {/* Bản quyền */}
-      <div className="container mx-auto px-6 mt-12 text-gray-500 text-sm text-center">
+      <div className="container mx-auto px-6 mt-10 sm:mt-12 text-gray-500 text-xs sm:text-sm text-center">
         &copy; 2026 JoyRide Beauty Studio. Toàn bộ bản quyền được bảo lưu.
       </div>
     </footer>

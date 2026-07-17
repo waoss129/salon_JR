@@ -1,11 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client"; //dam bao duong dan dung
-
+import { createClient } from "@/lib/supabase/client";
+import { normalizeVietnamesePhone } from "@/lib/utils/phone";
 import Link from "next/link";
 
-// Hàm chuyển đổi thông báo lỗi của Supabase sang Tiếng Việt
 const getVietnameseAuthError = (message: string): string => {
   const msg = message.toLowerCase();
   if (
@@ -13,6 +12,9 @@ const getVietnameseAuthError = (message: string): string => {
     msg.includes("already registered")
   ) {
     return "Email này đã được sử dụng cho một tài khoản khác.";
+  }
+  if (msg.includes("profiles_phone_unique") || msg.includes("duplicate key")) {
+    return "Số điện thoại này đã được đăng ký cho một tài khoản khác.";
   }
   if (msg.includes("password should be at least")) {
     return "Mật khẩu quá ngắn (Yêu cầu tối thiểu phải từ 6 ký tự trở lên).";
@@ -23,14 +25,15 @@ const getVietnameseAuthError = (message: string): string => {
   if (msg.includes("network error") || msg.includes("failed to fetch")) {
     return "Lỗi kết nối mạng hoặc cấu hình hệ thống chưa đúng.";
   }
-  // Nếu gặp lỗi khác chưa định nghĩa sẵn, trả về nội dung dịch tổng quát
   return `Đăng ký không thành công. Chi tiết: ${message}`;
 };
+
 export default function RegisterPage() {
   const router = useRouter();
   const supabase = createClient();
   const [fullname, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -41,13 +44,21 @@ export default function RegisterPage() {
       return;
     }
 
-    // Gọi API của Supabase Auth và truyền kèm fullname vào meta_data để trigger phía trên bắt được
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizeVietnamesePhone(phone);
+    } catch (err: any) {
+      alert(err?.message || "Số điện thoại không hợp lệ.");
+      return;
+    }
+
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          fullname: fullname, // Đẩy họ tên lên metadata hệ thống
+          fullname,
+          phone: normalizedPhone, // Trigger handle_new_user sẽ đọc field này để lưu vào profiles
         },
       },
     });
@@ -58,10 +69,9 @@ export default function RegisterPage() {
     }
 
     if (data.user) {
-      alert("Đăng ký tài khoản thành công! Hệ thống tự động khởi tạo hồ sơ ✨");
-      //window.location.href = "/";
-      router.push("/"); // Thay vì dùng window.location.href
-      router.refresh(); // Ép làm mới lại Layout để Header nhận diện User mới ngay lập tức
+      alert("Đăng ký tài khoản thành công! Hệ thống tự động khởi tạo hồ sơ");
+      router.push("/");
+      router.refresh();
     }
   };
 
@@ -77,7 +87,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form className="space-y-4">
+        <form className="space-y-4" onSubmit={handleRegister}>
           <div>
             <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
               Họ và tên
@@ -87,6 +97,7 @@ export default function RegisterPage() {
               type="text"
               className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
               placeholder="Nguyễn Văn A"
+              required
             />
           </div>
           <div>
@@ -98,7 +109,23 @@ export default function RegisterPage() {
               type="email"
               className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
               placeholder="name@email.com"
+              required
             />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
+              Số điện thoại
+            </label>
+            <input
+              onChange={(e) => setPhone(e.target.value)}
+              type="tel"
+              className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
+              placeholder="0912345678"
+              required
+            />
+            <p className="text-xs text-stone-400 mt-1">
+              Dùng để đăng nhập sau này thay vì email
+            </p>
           </div>
           <div>
             <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
@@ -109,15 +136,15 @@ export default function RegisterPage() {
               type="password"
               className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
               placeholder=""
+              required
             />
           </div>
 
           <button
-            onClick={handleRegister}
             type="submit"
             className="w-full bg-blue-400 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-md"
           >
-            ĐĂNG KÝ TÀI KHOẢN ✨
+            ĐĂNG KÝ TÀI KHOẢN
           </button>
         </form>
 

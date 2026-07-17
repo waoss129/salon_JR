@@ -9,6 +9,7 @@ import {
   type ScheduleStatus,
 } from "@/app/admin/schedules/actions";
 import { AddScheduleForm } from "./ScheduleForm";
+import ProposeScheduleModal from "./ProposeScheduleModal";
 import { canManage } from "@/lib/supabase/permissions";
 
 type Role = { id: number; role_name: string };
@@ -64,6 +65,7 @@ export function ScheduleManager({
   const [roleId, setRoleId] = useState<number | "">("");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showProposeModal, setShowProposeModal] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -177,12 +179,20 @@ export function ScheduleManager({
             &rsaquo;
           </button>
           {canAddSchedule && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="ml-auto bg-black text-white rounded px-3 py-1.5 text-sm"
-            >
-              + Thêm lịch
-            </button>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={() => setShowProposeModal(true)}
+                className="border border-black rounded px-3 py-1.5 text-sm hover:bg-gray-50"
+              >
+                Đề xuất lịch tuần sau
+              </button>
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-black text-white rounded px-3 py-1.5 text-sm"
+              >
+                + Thêm lịch
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -324,6 +334,16 @@ export function ScheduleManager({
             ))}
         </tbody>
       </table>
+
+      {showProposeModal && (
+        <ProposeScheduleModal
+          onClose={() => setShowProposeModal(false)}
+          onCreated={() => {
+            setShowProposeModal(false);
+            refresh(roleId, search);
+          }}
+        />
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">

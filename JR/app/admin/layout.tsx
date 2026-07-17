@@ -28,6 +28,7 @@ export default function AdminLayout({
 
   const [openDichVu, setOpenDichVu] = useState(false);
   const [openNhanVien, setOpenNhanVien] = useState(false);
+  const [openThongKe, setOpenThongKe] = useState(false);
 
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
@@ -253,12 +254,39 @@ export default function AdminLayout({
             )}
 
             {canView(roleId, "statistics") && (
-              <Link
-                href="/admin/statistics"
-                className="block p-2.5 rounded hover:bg-purple-200 transition"
-              >
-                Thống Kê
-              </Link>
+              <div>
+                <button
+                  onClick={() => setOpenThongKe(!openThongKe)}
+                  className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
+                >
+                  <span>Thống Kê</span>
+                  <span className="text-xs transition-transform duration-200">
+                    {openThongKe ? "▲" : "▼"}
+                  </span>
+                </button>
+                {openThongKe && (
+                  <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
+                    <Link
+                      href="/admin/statistics/schedules"
+                      className="block p-2 text-sm hover:text-violet-500"
+                    >
+                      Lịch Làm Việc
+                    </Link>
+                    <Link
+                      href="/admin/statistics/working-hours"
+                      className="block p-2 text-sm hover:text-violet-500"
+                    >
+                      Thời Gian Làm Việc
+                    </Link>
+                    <Link
+                      href="/admin/statistics/revenue"
+                      className="block p-2 text-sm hover:text-violet-500"
+                    >
+                      Doanh Thu
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
           </nav>
         </div>

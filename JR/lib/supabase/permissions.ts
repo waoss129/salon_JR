@@ -30,7 +30,7 @@ export const PERMISSIONS: Record<
   staff: { view: [1, 2, 3], manage: [1, 2, 3] },
 
   // Role admin, ceo, quản lý, lễ tân được toàn quyền khách hàng.
-  customers: { view: [1, 2, 3, 5], manage: [1, 2, 3, 5] },
+  customers: { view: [1, 3, 5], manage: [1, 3, 5] },
 
   services: { view: [1, 2, 3], manage: [1, 2, 3] },
 
@@ -42,7 +42,7 @@ export const PERMISSIONS: Record<
   schedules: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3] },
 
   // Role 4 chỉ xem lịch hẹn, không sửa.
-  appointments: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3, 5] },
+  appointments: { view: [1, 2, 3, 4, 5], manage: [1, 3, 5] },
 
   // Role 2 (CEO) chỉ xem hóa đơn, không được thêm/sửa.
   bills: { view: [1, 2, 3, 5], manage: [1, 3, 5] },
@@ -50,7 +50,7 @@ export const PERMISSIONS: Record<
   // Role 5 (lễ tân) chỉ xem trang khuyến mãi (để biết mã/điều kiện đang chạy),
   // không thêm/sửa/xóa được — việc "áp dụng vào hóa đơn" là tự động (đã làm
   // ở BillFormModal + RLS riêng cho bảng promotions), không đi qua canManage này.
-  promotions: { view: [1, 3, 5], manage: [1, 3] },
+  promotions: { view: [1, 2, 3, 5], manage: [1, 2, 3] },
 
   // Role 3, 4, 5 KHÔNG thấy menu/trang Thống Kê — họ chỉ thấy số liệu tổng
   // quan sẵn có trên Dashboard (feature "dashboard" ở trên, khác trang này).

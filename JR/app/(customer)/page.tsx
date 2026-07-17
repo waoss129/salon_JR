@@ -50,7 +50,7 @@ export default function JoyRideHomePage() {
       {/* Hero Section */}
       <section className="relative px-6 py-20 max-w-6xl mx-auto text-center space-y-8">
         <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#CFECF3]/50 text-stone-600 border border-[#BBE3ED]/60 uppercase tracking-widest relative z-10">
-          ✨ Kiêu sa diện mạo • Rạng rỡ hành trình
+          Kiêu sa diện mạo • Rạng rỡ hành trình
         </span>
 
         <h1 className="font-sans font-extrabold text-4xl sm:text-6xl tracking-tight leading-tight text-stone-900">
@@ -145,7 +145,7 @@ export default function JoyRideHomePage() {
               onClick={() => handleServiceSelect("hair")}
               className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-[#CFECF3]/20 hover:border-pink-300 transition-all cursor-pointer hover:shadow-md"
             >
-              <div className="text-3xl">💇</div>
+              <div className="text-3xl"></div>
               <h4 className="text-lg font-bold text-stone-900 mt-4">
                 Thiết Kế Tóc Thời Thượng
               </h4>
@@ -157,7 +157,7 @@ export default function JoyRideHomePage() {
               onClick={() => handleServiceSelect("nail")}
               className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-[#CFECF3]/20 hover:border-pink-300 transition-all cursor-pointer hover:shadow-md"
             >
-              <div className="text-3xl">💅</div>
+              <div className="text-3xl"></div>
               <h4 className="text-lg font-bold text-stone-900 mt-4">
                 Nail Art Nghệ Thuật
               </h4>
@@ -169,7 +169,7 @@ export default function JoyRideHomePage() {
               onClick={() => handleServiceSelect("spa")}
               className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-[#CFECF3]/20 hover:border-pink-300 transition-all cursor-pointer hover:shadow-md"
             >
-              <div className="text-3xl">💆</div>
+              <div className="text-3xl"></div>
               <h4 className="text-lg font-bold text-stone-900 mt-4">
                 Spa & Trị Liệu Da Mặt
               </h4>
