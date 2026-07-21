@@ -155,39 +155,6 @@ export async function updateStaffStatus(
   revalidatePath("/admin/staff");
 }
 
-export async function deleteStaff(employeeId: string): Promise<void> {
-  await requireManage("staff");
-
-  const adminClient = createAdminClient();
-  const supabase = await createClient();
-
-  const { error: employeeError } = await supabase
-    .from("employees")
-    .delete()
-    .eq("id", employeeId);
-  if (employeeError) {
-    if (employeeError.code === "23503") {
-      throw new Error(
-        "Không thể xoá vì nhân viên này đã có dữ liệu liên quan (lịch làm việc, chuyên môn...). " +
-          'Hãy đổi trạng thái sang "Đã nghỉ việc" thay vì xoá.',
-      );
-    }
-    throw new Error(employeeError.message);
-  }
-
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .delete()
-    .eq("id", employeeId);
-  if (profileError) throw new Error(profileError.message);
-
-  const { error: authError } =
-    await adminClient.auth.admin.deleteUser(employeeId);
-  if (authError) throw new Error(authError.message);
-
-  revalidatePath("/admin/staff");
-}
-
 /**
  * Cập nhật hồ sơ nhân viên (thông tin cá nhân + thông tin công việc + avatar).
  *
@@ -247,18 +214,49 @@ export async function updateStaff(
     .eq("id", employeeId);
   if (profileError) throw new Error(profileError.message);
 
-  const employeeUpdates = {
-    joined_at: (formData.get("joined_at") as string | null) || null,
-    certificate_name:
-      (formData.get("certificate_name") as string | null)?.trim() || null,
-    level: (formData.get("level") as string | null)?.trim() || null,
-  };
-
   const { error: employeeError } = await supabase
     .from("employees")
-    .update(employeeUpdates)
+    .update({
+      joined_at: (formData.get("joined_at") as string | null) || null,
+      certificate_name:
+        (formData.get("certificate_name") as string | null)?.trim() || null,
+      level: (formData.get("level") as string | null)?.trim() || null,
+    })
     .eq("id", employeeId);
   if (employeeError) throw new Error(employeeError.message);
+
+  // Lương KHÔNG nằm trên bảng employees — được lưu dạng lịch sử theo thời
+  // gian ở bảng salary_history (mỗi lần đổi lương là 1 dòng mới, có
+  // effective_from). Chỉ thêm dòng lịch sử mới nếu số tiền THỰC SỰ thay
+  // đổi so với mức lương hiện tại — tránh tạo dòng trùng lặp mỗi lần Admin
+  // bấm Lưu dù không đổi lương.
+  const baseSalaryRaw = formData.get("base_salary") as string | null;
+  const newBaseSalary = baseSalaryRaw ? Number(baseSalaryRaw) : 0;
+
+  const { data: latestSalary, error: latestSalaryError } = await supabase
+    .from("salary_history")
+    .select("base_salary")
+    .eq("employee_id", employeeId)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestSalaryError) throw new Error(latestSalaryError.message);
+
+  if (!latestSalary || latestSalary.base_salary !== newBaseSalary) {
+    const {
+      data: { user: actingUser },
+    } = await supabase.auth.getUser();
+
+    const { error: salaryError } = await supabase
+      .from("salary_history")
+      .insert({
+        employee_id: employeeId,
+        base_salary: newBaseSalary,
+        effective_from: new Date().toISOString().slice(0, 10),
+        created_by: actingUser?.id ?? null,
+      });
+    if (salaryError) throw new Error(salaryError.message);
+  }
 
   revalidatePath("/admin/staff");
   revalidatePath(`/admin/staff/details/${employeeId}`);

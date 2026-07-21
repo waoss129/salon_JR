@@ -9,6 +9,7 @@ export type StatsSummary = {
 
 export type TopServiceRow = {
   serviceName: string;
+  categoryName: string;
   quantitySold: number;
   revenue: number;
 };
@@ -16,7 +17,7 @@ export type TopServiceRow = {
 type BillServiceRow = {
   quantity: number;
   subtotal: number;
-  services: { name: string } | null;
+  services: { name: string; categories: { name: string } | null } | null;
 };
 
 function toRangeIso(from: string, to: string) {
@@ -30,7 +31,10 @@ function toRangeIso(from: string, to: string) {
 // 4 Ô TỔNG QUAN
 // ============================================================
 
-export async function getStatisticsSummary(from: string, to: string): Promise<StatsSummary> {
+export async function getStatisticsSummary(
+  from: string,
+  to: string,
+): Promise<StatsSummary> {
   const supabase = await createAdminAuthClient();
   const { start, end } = toRangeIso(from, to);
 
@@ -43,7 +47,10 @@ export async function getStatisticsSummary(from: string, to: string): Promise<St
     .gte("updated_at", start)
     .lte("updated_at", end);
 
-  const totalRevenue = (paidBills ?? []).reduce((sum, b) => sum + (b.total_price ?? 0), 0);
+  const totalRevenue = (paidBills ?? []).reduce(
+    (sum, b) => sum + (b.total_price ?? 0),
+    0,
+  );
   const paidCount = (paidBills ?? []).length;
 
   // Số hóa đơn đã tạo trong khoảng (không lọc trạng thái).
@@ -74,21 +81,26 @@ export async function getStatisticsSummary(from: string, to: string): Promise<St
 // TOP 5 DỊCH VỤ BÁN CHẠY
 // ============================================================
 
-export async function getTopServices(from: string, to: string, limit = 5): Promise<TopServiceRow[]> {
+export async function getTopServices(
+  from: string,
+  to: string,
+  limit = 5,
+): Promise<TopServiceRow[]> {
   const supabase = await createAdminAuthClient();
   const { start, end } = toRangeIso(from, to);
 
   // Chỉ tính trên các dòng dịch vụ thuộc bill đã 'paid' trong khoảng thời gian,
-  // để khớp với "Tổng doanh thu" ở phần tổng quan.
+  // để khớp với "Tổng doanh thu" ở phần tổng quan. Lấy kèm tên category qua
+  // services -> categories để hiển thị loại dịch vụ trong bảng Top 5.
   const { data, error } = await supabase
     .from("bill_services")
     .select(
       `
       quantity,
       subtotal,
-      services ( name ),
+      services ( name, categories ( name ) ),
       bills!inner ( status, updated_at )
-    `
+    `,
     )
     .eq("bills.status", "paid")
     .gte("bills.updated_at", start)
@@ -99,18 +111,34 @@ export async function getTopServices(from: string, to: string, limit = 5): Promi
     return [];
   }
 
-  const totals = new Map<string, { quantitySold: number; revenue: number }>();
+  // Gộp theo (tên dịch vụ + tên category) để tránh trường hợp hiếm gặp 2
+  // dịch vụ trùng tên nhưng khác category bị gộp nhầm vào nhau.
+  const totals = new Map<
+    string,
+    {
+      serviceName: string;
+      categoryName: string;
+      quantitySold: number;
+      revenue: number;
+    }
+  >();
 
   for (const row of (data ?? []) as unknown as BillServiceRow[]) {
-    const name = row.services?.name ?? "—";
-    const current = totals.get(name) ?? { quantitySold: 0, revenue: 0 };
+    const serviceName = row.services?.name ?? "—";
+    const categoryName = row.services?.categories?.name ?? "Khác";
+    const key = `${serviceName}::${categoryName}`;
+    const current = totals.get(key) ?? {
+      serviceName,
+      categoryName,
+      quantitySold: 0,
+      revenue: 0,
+    };
     current.quantitySold += row.quantity ?? 0;
     current.revenue += row.subtotal ?? 0;
-    totals.set(name, current);
+    totals.set(key, current);
   }
 
-  return Array.from(totals.entries())
-    .map(([serviceName, v]) => ({ serviceName, ...v }))
+  return Array.from(totals.values())
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, limit);
 }

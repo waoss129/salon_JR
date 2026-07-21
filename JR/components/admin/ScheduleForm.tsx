@@ -24,33 +24,32 @@ export function AddScheduleForm({
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  // Tính thứ trong tuần từ chuỗi "YYYY-MM-DD" theo giờ LOCAL (không dùng
+  // dowNum: 1 = Thứ 2 ... 6 = Thứ 7, 7 = Chủ nhật — khớp CHECK constraint
+  // của cột sessions.day_of_week (1-7). Tính theo giờ LOCAL (không dùng
   // new Date(dateStr) trực tiếp vì nó parse theo UTC, dễ lệch 1 ngày tuỳ
   // múi giờ trình duyệt).
-  // getDay(): 0 = Chủ nhật, 1-5 = Thứ 2 - Thứ 6, 6 = Thứ 7
-  function getWeekdayGroup(dateStr: string): "T2-T6" | "T7" | "CN" | null {
+  function dowNumOf(dateStr: string): number | null {
     if (!dateStr) return null;
     const [y, m, d] = dateStr.split("-").map(Number);
-    const dow = new Date(y, m - 1, d).getDay();
-    if (dow >= 1 && dow <= 5) return "T2-T6";
-    if (dow === 6) return "T7";
-    return "CN"; // Chủ nhật - hiện tại chưa có ca nào áp dụng
+    const dow = new Date(y, m - 1, d).getDay(); // 0 = Chủ nhật
+    return dow === 0 ? 7 : dow;
   }
 
-  const weekdayGroup = getWeekdayGroup(date);
+  const dowNum = dowNumOf(date);
 
-  // Gợi ý lâu dài: nên thêm cột `applies_to` (enum: weekday/saturday/sunday)
-  // vào bảng sessions thay vì suy luận từ chuỗi tên như dưới đây.
-  const applicableSessions =
-    weekdayGroup && weekdayGroup !== "CN"
-      ? sessions.filter((s) => s.name.toUpperCase().includes(weekdayGroup))
-      : [];
+  // Lọc đúng theo cột day_of_week thật trong DB — trước đây suy luận qua
+  // tên session (vd .name.includes("T2-T6")) nên dễ vỡ nếu đặt tên không
+  // đúng quy ước, và mặc định luôn coi Chủ nhật là chưa có ca dù dữ liệu
+  // thật có thể đã có. Giờ để dữ liệu tự quyết định, không giả định nữa.
+  const applicableSessions = dowNum
+    ? sessions.filter((s) => s.day_of_week === dowNum)
+    : [];
 
-  const morningSessions = applicableSessions.filter((s) =>
-    s.name.toUpperCase().startsWith("SA"),
+  const morningSessions = applicableSessions.filter(
+    (s) => s.shift_type === "SA",
   );
-  const afternoonSessions = applicableSessions.filter((s) =>
-    s.name.toUpperCase().startsWith("CH"),
+  const afternoonSessions = applicableSessions.filter(
+    (s) => s.shift_type === "CH",
   );
 
   function toggleSession(id: number) {
@@ -61,14 +60,11 @@ export function AddScheduleForm({
 
   function handleDateChange(value: string) {
     setDate(value);
-    // Ngày đổi -> nhóm thứ có thể đổi -> bỏ chọn các ca không còn phù hợp
-    const nextGroup = getWeekdayGroup(value);
-    const nextApplicable =
-      nextGroup && nextGroup !== "CN"
-        ? sessions
-            .filter((s) => s.name.toUpperCase().includes(nextGroup))
-            .map((s) => s.id)
-        : [];
+    // Ngày đổi -> ca áp dụng có thể đổi -> bỏ chọn các ca không còn phù hợp.
+    const nextDowNum = dowNumOf(value);
+    const nextApplicable = nextDowNum
+      ? sessions.filter((s) => s.day_of_week === nextDowNum).map((s) => s.id)
+      : [];
     setSelectedSessions((prev) =>
       prev.filter((id) => nextApplicable.includes(id)),
     );
@@ -164,14 +160,13 @@ export function AddScheduleForm({
         </p>
       )}
 
-      {weekdayGroup === "CN" && (
+      {date && applicableSessions.length === 0 && (
         <p className="text-sm text-amber-600">
-          Ngày này rơi vào Chủ nhật — hiện chưa có ca làm việc nào áp dụng cho
-          Chủ nhật
+          Ngày này hiện chưa có ca làm việc nào được cấu hình.
         </p>
       )}
 
-      {date && weekdayGroup !== "CN" && (
+      {date && applicableSessions.length > 0 && (
         <div className="flex gap-6">
           {renderSessionGroup("Buổi sáng", morningSessions)}
           {renderSessionGroup("Buổi chiều", afternoonSessions)}

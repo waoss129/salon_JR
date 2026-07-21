@@ -18,32 +18,61 @@ import {
   type NextWeekInfo,
 } from "@/app/admin/schedules/proposals/actions";
 
-const WEEKDAY_HEADER = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+// Lịch bắt đầu từ Thứ 2, kết thúc Chủ nhật — khớp cách chia ca thực tế
+// (tuần làm việc), thay vì thứ tự CN-đầu-tuần trước đây.
+const WEEKDAY_HEADER = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
-function dayGroup(dateStr: string): "T2-T6" | "T7" | "CN" {
+// dowNum: 1 = Thứ 2 ... 6 = Thứ 7, 7 = Chủ nhật — khớp CHECK constraint
+// của cột sessions.day_of_week (1-7). Date.getDay() trả 0 = Chủ nhật nên
+// phải quy đổi lại, KHÔNG dùng trực tiếp.
+function dowNumOf(dateStr: string): number {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dow = new Date(y, m - 1, d).getDay();
-  if (dow >= 1 && dow <= 5) return "T2-T6";
-  if (dow === 6) return "T7";
-  return "CN";
+  return dow === 0 ? 7 : dow;
 }
 
+// Format ngày theo giờ LOCAL, dạng YYYY-MM-DD — KHÔNG dùng d.toISOString()
+// ở đây. toISOString() quy đổi sang UTC: với múi giờ Việt Nam (UTC+7),
+// nửa đêm giờ VN của 1 ngày bị lùi về 17h hôm trước theo UTC, khiến
+// chuỗi ngày trả về bị lùi mất 1 ngày so với ngày thực tế trên lịch —
+// đây chính là lý do Thứ 2/Thứ 7 trước đó hiện sai ca (khớp nhầm sang
+// ngày liền kề).
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Lọc đúng các session áp dụng cho 1 ngày cụ thể, dựa vào cột day_of_week
+// thật trong DB — KHÔNG suy luận qua tên session nữa (cách cũ dùng
+// s.name.includes("T2-T6") dễ vỡ nếu đặt tên không đúng quy ước, và không
+// phản ánh đúng dữ liệu thật của từng session).
 function sessionsForDate(sessions: SessionRow[], dateStr: string) {
-  const group = dayGroup(dateStr);
-  return sessions.filter((s) => s.name.toUpperCase().includes(group));
+  const dowNum = dowNumOf(dateStr);
+  return sessions.filter((s) => s.day_of_week === dowNum);
 }
 
-function shiftLabel(sessionName: string) {
-  return sessionName.toUpperCase().startsWith("SA") ? "Sáng" : "Chiều";
+// Thứ 7 / Chủ nhật hiện chỉ có 1 session mỗi ngày với shift_type = null
+// (ca "cả ngày", không tách Sáng/Chiều) — trước đây mặc định null thành
+// "Sáng" là sai, phải hiện đúng "Cả ngày" (khớp quy ước đã dùng ở
+// MyProposalForm.tsx / ScheduleProposalReview.tsx).
+function shiftLabel(shiftType: SessionRow["shift_type"]) {
+  if (shiftType === "CH") return "Chiều";
+  if (shiftType === "SA") return "Sáng";
+  return "Cả ngày";
 }
 
 type CalendarCell = { date: string; inCurrentMonth: boolean };
 
-function buildMonthGrid(weekStart: string): CalendarCell[] {
+function buildMonthGrid(weekStart: string, weekEnd: string): CalendarCell[] {
   const [wy, wm] = weekStart.split("-").map(Number);
   const month = wm - 1;
   const firstOfMonth = new Date(wy, month, 1);
-  const startOffset = firstOfMonth.getDay(); // 0 = CN
+  // Lưới bắt đầu từ Thứ 2: quy đổi getDay() (0=CN...6=T7) sang offset
+  // tính từ Thứ 2 (0=T2...6=CN).
+  const jsDow = firstOfMonth.getDay();
+  const startOffset = (jsDow + 6) % 7;
   const gridStart = new Date(wy, month, 1 - startOffset);
 
   const cells: CalendarCell[] = [];
@@ -51,12 +80,22 @@ function buildMonthGrid(weekStart: string): CalendarCell[] {
     const d = new Date(gridStart);
     d.setDate(gridStart.getDate() + i);
     cells.push({
-      date: d.toISOString().slice(0, 10),
+      date: toLocalISODate(d),
       inCurrentMonth: d.getMonth() === month,
     });
   }
   // Bỏ bớt hàng cuối nếu toàn ngày tháng sau (lưới thường chỉ cần 5-6 hàng).
-  while (cells.length > 35 && cells.slice(-7).every((c) => !c.inCurrentMonth)) {
+  // KHÔNG được cắt hàng nào chứa ngày thuộc tuần sau (weekStart -> weekEnd)
+  // — trước đây thiếu điều kiện này nên tuần vắt sang tháng kế tiếp (vd
+  // Chủ nhật là mùng 1 tháng sau) bị cắt mất, khiến Chủ nhật không hiện.
+  while (
+    cells.length > 35 &&
+    cells
+      .slice(-7)
+      .every(
+        (c) => !c.inCurrentMonth && (c.date < weekStart || c.date > weekEnd),
+      )
+  ) {
     cells.splice(-7, 7);
   }
   return cells;
@@ -88,8 +127,12 @@ export default function ProposeScheduleModal({
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [weekInfo, setWeekInfo] = useState<NextWeekInfo | null>(null);
 
-  // date -> danh sách sessionId đã tích cho ngày đó (cho phép nhiều ca/ngày)
-  const [selections, setSelections] = useState<Record<string, number[]>>({});
+  // date -> sessionId đã chọn cho ngày đó, hoặc null nếu chưa chọn.
+  // Mỗi ngày (dù thường hay cuối tuần) chỉ được chọn ĐÚNG 1 ca — 1 ngày làm
+  // việc chỉ 8 tiếng, không thể xếp cả Sáng lẫn Chiều cùng lúc.
+  const [selections, setSelections] = useState<Record<string, number | null>>(
+    {},
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,30 +216,23 @@ export default function ProposeScheduleModal({
 
   const monthCells = useMemo(() => {
     if (!weekInfo) return [];
-    return buildMonthGrid(weekInfo.weekStart);
+    return buildMonthGrid(weekInfo.weekStart, weekInfo.weekEnd);
   }, [weekInfo]);
 
-  function toggleShift(date: string, sessionId: number) {
-    setSelections((prev) => {
-      const current = prev[date] ?? [];
-      const next = current.includes(sessionId)
-        ? current.filter((id) => id !== sessionId)
-        : [...current, sessionId];
-      return { ...prev, [date]: next };
-    });
+  // Chọn 1 ca cho 1 ngày — bấm lại đúng ca đang chọn thì bỏ chọn, bấm ca
+  // khác thì thay thế (không cộng dồn), vì mỗi ngày chỉ được đúng 1 ca.
+  function selectShift(date: string, sessionId: number) {
+    setSelections((prev) => ({
+      ...prev,
+      [date]: prev[date] === sessionId ? null : sessionId,
+    }));
   }
 
   const regularCount = weekInfo
-    ? weekInfo.weekdayDates.reduce(
-        (sum, d) => sum + (selections[d]?.length ?? 0),
-        0,
-      )
+    ? weekInfo.weekdayDates.filter((d) => selections[d] != null).length
     : 0;
   const specialCount = weekInfo
-    ? weekInfo.weekendDates.reduce(
-        (sum, d) => sum + (selections[d]?.length ?? 0),
-        0,
-      )
+    ? weekInfo.weekendDates.filter((d) => selections[d] != null).length
     : 0;
 
   async function handleSubmit() {
@@ -209,12 +245,12 @@ export default function ProposeScheduleModal({
     if (specialCount < 1)
       return setError("Cần đề xuất ít nhất 1 ca đặc biệt (Thứ 7 / Chủ nhật).");
 
-    const regularShifts = weekInfo.weekdayDates.flatMap((date) =>
-      (selections[date] ?? []).map((sessionId) => ({ date, sessionId })),
-    );
-    const specialShifts = weekInfo.weekendDates.flatMap((date) =>
-      (selections[date] ?? []).map((sessionId) => ({ date, sessionId })),
-    );
+    const regularShifts = weekInfo.weekdayDates
+      .filter((date) => selections[date] != null)
+      .map((date) => ({ date, sessionId: selections[date] as number }));
+    const specialShifts = weekInfo.weekendDates
+      .filter((date) => selections[date] != null)
+      .map((date) => ({ date, sessionId: selections[date] as number }));
 
     setSaving(true);
     try {
@@ -410,6 +446,7 @@ export default function ProposeScheduleModal({
                       ? sessionsForDate(sessions, cell.date)
                       : [];
                     const dayNum = Number(cell.date.slice(8, 10));
+                    const selectedId = selections[cell.date] ?? null;
 
                     return (
                       <div
@@ -439,23 +476,25 @@ export default function ProposeScheduleModal({
                               </p>
                             )}
                             {options.map((s) => {
-                              const checked = (
-                                selections[cell.date] ?? []
-                              ).includes(s.id);
+                              const checked = selectedId === s.id;
                               return (
                                 <label
                                   key={s.id}
                                   className="flex items-center gap-1 text-[11px] text-gray-600"
                                 >
+                                  {/* Mỗi ngày chỉ chọn được 1 ca — bấm ca
+                                      khác trong cùng ngày sẽ tự thay thế ca
+                                      đang chọn (hành xử như radio), không
+                                      cộng dồn như checkbox thường. */}
                                   <input
                                     type="checkbox"
                                     checked={checked}
                                     onChange={() =>
-                                      toggleShift(cell.date, s.id)
+                                      selectShift(cell.date, s.id)
                                     }
                                     className="h-3 w-3"
                                   />
-                                  {shiftLabel(s.name)}
+                                  {shiftLabel(s.shift_type)}
                                 </label>
                               );
                             })}

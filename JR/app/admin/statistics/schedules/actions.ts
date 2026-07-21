@@ -25,6 +25,11 @@ export type AbsenceRow = {
   totalCount: number;
   rate: number;
 };
+export type DaysOffRow = {
+  employeeId: string;
+  fullname: string;
+  daysOff: number;
+};
 
 function enumerateDates(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -154,5 +159,45 @@ export async function getScheduleStatistics(params: {
     }))
     .sort((a, b) => b.rate - a.rate);
 
-  return { gaps, workload, absence };
+  // 4. Số ngày nghỉ trong khoảng đã chọn — CÙNG ĐỊNH NGHĨA với trang Lương:
+  //    1 ngày T2-T6 tính là "nghỉ" nếu KHÔNG có ca completed, không phân
+  //    biệt lý do (chưa xếp lịch, vắng, hay huỷ đều tính như nhau). Đây là
+  //    con số tham khảo trước khi vào trang Lương xem số tiền bị trừ thật.
+  //    Lưu ý: khoảng ngày ở trang này tuỳ chọn (không nhất thiết đúng 1
+  //    tháng dương lịch), nên KHÔNG áp hạn mức "4 ngày/tháng" ở đây — chỉ
+  //    trang Thống kê thời gian làm việc (theo tháng) mới áp hạn mức đó.
+  const completedWeekdaysByEmployee = new Map<string, Set<string>>();
+  for (const s of schedules ?? []) {
+    if ((s as any).status !== "completed") continue;
+    const [y, m, d] = (s as any).date.split("-").map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    if (dow < 1 || dow > 5) continue;
+    const empId = (s as any).employee?.id;
+    if (!empId) continue;
+    if (!completedWeekdaysByEmployee.has(empId))
+      completedWeekdaysByEmployee.set(empId, new Set());
+    completedWeekdaysByEmployee.get(empId)!.add((s as any).date);
+  }
+
+  const weekdaysInRange = enumerateDates(
+    params.startDate,
+    params.endDate,
+  ).filter((date) => {
+    const [y, m, d] = date.split("-").map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    return dow >= 1 && dow <= 5;
+  });
+
+  const daysOff: DaysOffRow[] = employeeIds.map((employeeId) => {
+    const completedCount =
+      completedWeekdaysByEmployee.get(employeeId)?.size ?? 0;
+    return {
+      employeeId,
+      fullname: profileMap.get(employeeId) ?? "Không rõ",
+      daysOff: weekdaysInRange.length - completedCount,
+    };
+  });
+  daysOff.sort((a, b) => b.daysOff - a.daysOff);
+
+  return { gaps, workload, absence, daysOff };
 }

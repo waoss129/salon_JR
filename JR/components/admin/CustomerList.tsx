@@ -1,10 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import {
-  updateCustomerStatus,
-  deleteCustomer,
-} from "@/app/admin/customers/actions";
+import { updateCustomerStatus } from "@/app/admin/customers/actions";
 
 const GENDER_LABEL: Record<string, string> = {
   male: "Nam",
@@ -39,18 +36,6 @@ export default function CustomerList({ customers }: { customers: any[] }) {
       await updateCustomerStatus(id, newStatus);
     } catch (err: any) {
       alert(err?.message || "Không thể cập nhật trạng thái");
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa khách hàng này?")) return;
-    setLoadingId(id);
-    try {
-      await deleteCustomer(id);
-    } catch (err: any) {
-      alert(err?.message || "Không thể xoá khách hàng");
     } finally {
       setLoadingId(null);
     }
@@ -122,13 +107,6 @@ export default function CustomerList({ customers }: { customers: any[] }) {
                   >
                     Xem
                   </Link>
-                  <button
-                    onClick={() => handleDelete(c.id)}
-                    disabled={loadingId === c.id}
-                    className="border border-red-200 text-red-600 rounded px-2 py-1 text-xs hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Xoá
-                  </button>
                 </div>
               </td>
             </tr>

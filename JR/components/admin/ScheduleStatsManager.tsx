@@ -6,12 +6,15 @@ import {
   type CoverageGap,
   type WorkloadRow,
   type AbsenceRow,
+  type DaysOffRow,
 } from "@/app/admin/statistics/schedules/actions";
+import { PrintButton } from "@/components/admin/PrintButton";
 
 type StatsData = {
   gaps: CoverageGap[];
   workload: WorkloadRow[];
   absence: AbsenceRow[];
+  daysOff: DaysOffRow[];
 };
 
 export function ScheduleStatsManager({
@@ -54,7 +57,7 @@ export function ScheduleStatsManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2 print:hidden">
         <div>
           <label className="text-xs font-medium block mb-1">Từ ngày</label>
           <input
@@ -80,9 +83,15 @@ export function ScheduleStatsManager({
         >
           {isPending ? "Đang tải..." : "Xem"}
         </button>
+        <PrintButton className="ml-auto" />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {/* Chỉ hiện khi in, để biết đang xem đúng khoảng ngày nào trên giấy */}
+      <p className="hidden print:block text-sm text-gray-500 -mt-4">
+        Khoảng ngày: {startDate} — {endDate}
+      </p>
+
+      {error && <p className="text-sm text-red-600 print:hidden">{error}</p>}
 
       {/* 1. Ca trống */}
       <section>
@@ -178,6 +187,41 @@ export function ScheduleStatsManager({
                     {a.rate}%
                   </span>
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* 4. Số ngày nghỉ (tham khảo — số tiền bị trừ thật xem ở trang Lương) */}
+      <section>
+        <h2 className="font-semibold mb-2">
+          Số ngày nghỉ theo nhân viên (trong khoảng đã chọn)
+        </h2>
+        <p className="text-xs text-gray-400 mb-2">
+          Gồm cả ngày chưa xếp lịch lẫn ngày có xếp nhưng không hoàn thành ca.
+          Hạn mức 4 ngày/tháng và số tiền bị trừ (nếu có) xem chi tiết ở trang
+          Thống kê lương.
+        </p>
+        <table className="w-full text-sm border rounded overflow-hidden">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left p-2">Nhân viên</th>
+              <th className="text-left p-2">Số ngày nghỉ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.daysOff.length === 0 && (
+              <tr>
+                <td colSpan={2} className="p-3 text-center text-gray-400">
+                  Chưa có dữ liệu trong khoảng đã chọn
+                </td>
+              </tr>
+            )}
+            {data.daysOff.map((d) => (
+              <tr key={d.employeeId} className="border-t">
+                <td className="p-2">{d.fullname}</td>
+                <td className="p-2">{d.daysOff}</td>
               </tr>
             ))}
           </tbody>

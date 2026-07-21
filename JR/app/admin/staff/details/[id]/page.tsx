@@ -40,6 +40,31 @@ export default async function StaffDetailPage({
     notFound(); // Chỉ gọi notFound khi thực sự không có data
   }
 
+  // Lương KHÔNG nằm trên bảng employees — được lưu dạng lịch sử theo thời
+  // gian ở bảng salary_history (mỗi lần đổi lương là 1 dòng mới, có
+  // effective_from). Lấy dòng gần nhất (mới nhất) để hiển thị mức lương
+  // HIỆN TẠI lên form — khác với trang Thống kê lương (nơi cần đúng mức
+  // lương "có hiệu lực tại tháng X" cho báo cáo lịch sử).
+  const { data: latestSalaryRow, error: salaryError } = await supabase
+    .from("salary_history")
+    .select("base_salary")
+    .eq("employee_id", id)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (salaryError) {
+    console.error(
+      "Lỗi lấy lương hiện tại:",
+      JSON.stringify(salaryError, null, 2),
+    );
+  }
+
+  const staffWithSalary = {
+    ...staff,
+    base_salary: latestSalaryRow?.base_salary ?? 0,
+  };
+
   // Lấy role của người ĐANG XEM trang này (không phải role của nhân viên
   // đang được sửa) — dùng client bám session (createAdminAuthClient), khác
   // với createAdminClient (service-role) dùng để truy vấn dữ liệu staff ở trên.
@@ -65,7 +90,7 @@ export default async function StaffDetailPage({
         Chi tiết: {staff.profiles.fullname}
       </h1>
       {/* Render form tương tự ảnh mẫu bạn đã gửi */}
-      <StaffDetailForm data={staff} viewerRoleId={viewerRoleId} />
+      <StaffDetailForm data={staffWithSalary} viewerRoleId={viewerRoleId} />
     </div>
   );
 }

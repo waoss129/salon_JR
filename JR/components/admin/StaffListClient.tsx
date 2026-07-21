@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { updateStaffStatus, deleteStaff } from "@/app/admin/staff/actions";
+import { updateStaffStatus } from "@/app/admin/staff/actions";
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Đang làm việc",
   on_leave: "Đang nghỉ phép",
-  inactive: "Tạm nghỉ",
+  inactive: "Tạm khoá (Admin)",
   terminated: "Đã nghỉ việc",
 };
 
@@ -25,18 +25,6 @@ export default function StaffListClient({
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa nhân viên này?")) return;
-    setUpdatingId(id);
-    try {
-      await deleteStaff(id);
-      window.location.reload();
-    } catch (err: any) {
-      alert(err?.message || "Không thể xoá nhân viên");
-      setUpdatingId(null);
-    }
-  };
 
   const handleStatusChange = async (id: string, status: string) => {
     setUpdatingId(id);
@@ -133,13 +121,6 @@ export default function StaffListClient({
                   >
                     Xem
                   </Link>
-                  <button
-                    onClick={() => handleDelete(staff.id)}
-                    disabled={updatingId === staff.id}
-                    className="border border-red-200 text-red-600 rounded px-2 py-1 text-xs hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Xoá
-                  </button>
                 </div>
               </td>
             </tr>

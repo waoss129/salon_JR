@@ -5,6 +5,7 @@ import {
   getWorkingHoursStatistics,
   type WorkingHoursRow,
 } from "@/app/admin/statistics/working-hours/actions";
+import { PrintButton } from "@/components/admin/PrintButton";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -42,7 +43,7 @@ export function WorkingHoursManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2 print:hidden">
         <div>
           <label className="text-xs font-medium block mb-1">Tháng</label>
           <select
@@ -74,9 +75,14 @@ export function WorkingHoursManager({
             className="border rounded px-2 py-1.5 text-sm w-24"
           />
         </div>
+        <PrintButton className="ml-auto" />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      <p className="hidden print:block text-sm text-gray-500 -mt-2">
+        Tháng {month}/{year}
+      </p>
+
+      {error && <p className="text-sm text-red-600 print:hidden">{error}</p>}
 
       <table className="w-full text-sm border rounded overflow-hidden">
         <thead className="bg-gray-50">
@@ -84,19 +90,20 @@ export function WorkingHoursManager({
             <th className="text-left p-2">Nhân viên</th>
             <th className="text-left p-2">Số ca hoàn thành</th>
             <th className="text-left p-2">Tổng giờ làm</th>
+            <th className="text-left p-2">Số ngày nghỉ</th>
           </tr>
         </thead>
         <tbody>
           {isPending && (
             <tr>
-              <td colSpan={3} className="p-3 text-center text-gray-400">
+              <td colSpan={4} className="p-3 text-center text-gray-400">
                 Đang tải...
               </td>
             </tr>
           )}
           {!isPending && data.length === 0 && (
             <tr>
-              <td colSpan={3} className="p-3 text-center text-gray-400">
+              <td colSpan={4} className="p-3 text-center text-gray-400">
                 Chưa có ca nào hoàn thành trong tháng này
               </td>
             </tr>
@@ -107,6 +114,20 @@ export function WorkingHoursManager({
                 <td className="p-2">{row.fullname}</td>
                 <td className="p-2">{row.completedShifts}</td>
                 <td className="p-2">{row.totalHours} giờ</td>
+                <td className="p-2">
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      row.deductibleDaysOff > 0
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {row.daysOff} ngày
+                    {row.deductibleDaysOff > 0
+                      ? ` (vượt ${row.deductibleDaysOff})`
+                      : ` (còn ${4 - row.daysOff}/4 phép)`}
+                  </span>
+                </td>
               </tr>
             ))}
         </tbody>
@@ -117,6 +138,7 @@ export function WorkingHoursManager({
                 Tổng cộng
               </td>
               <td className="p-2">{Math.round(totalHoursAll * 10) / 10} giờ</td>
+              <td className="p-2"></td>
             </tr>
           </tfoot>
         )}

@@ -1,6 +1,7 @@
-// app/admin/statistics/page.tsx
+// app/admin/statistics/revenue/page.tsx
 import { requireView } from "@/lib/supabase/admin-guard";
 import StatisticsFilters from "@/components/admin/StatisticsFilters";
+import { PrintButton } from "@/components/admin/PrintButton";
 import { getStatisticsSummary, getTopServices } from "./queries";
 
 function formatCurrency(value: number) {
@@ -18,11 +19,9 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default async function StatisticsPage({
+export default async function RevenueStatisticsPage({
   searchParams,
 }: {
-  // TODO: nếu project bạn dùng Next.js < 15, searchParams là object thường,
-  // không phải Promise — bỏ "Promise<...>" và bỏ "await searchParams" bên dưới.
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   await requireView("statistics");
@@ -40,14 +39,21 @@ export default async function StatisticsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Thống kê</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Số liệu trong khoảng {from} — {to}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Thống kê doanh thu
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Số liệu trong khoảng {from} — {to}
+          </p>
+        </div>
+        <PrintButton />
       </div>
 
-      <StatisticsFilters defaultFrom={defaultFrom} defaultTo={defaultTo} />
+      <div className="print:hidden">
+        <StatisticsFilters defaultFrom={defaultFrom} defaultTo={defaultTo} />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <StatCard
@@ -81,6 +87,7 @@ export default async function StatisticsPage({
             <thead>
               <tr className="border-b border-gray-100 text-left text-gray-500">
                 <th className="py-2 pr-4 font-medium">Dịch vụ</th>
+                <th className="py-2 pr-4 font-medium">Loại dịch vụ</th>
                 <th className="py-2 pr-4 text-center font-medium">Số lượt</th>
                 <th className="py-2 text-right font-medium">Doanh thu</th>
               </tr>
@@ -88,10 +95,11 @@ export default async function StatisticsPage({
             <tbody>
               {topServices.map((s) => (
                 <tr
-                  key={s.serviceName}
+                  key={`${s.serviceName}-${s.categoryName}`}
                   className="border-b border-gray-50 last:border-0"
                 >
                   <td className="py-2 pr-4">{s.serviceName}</td>
+                  <td className="py-2 pr-4 text-gray-500">{s.categoryName}</td>
                   <td className="py-2 pr-4 text-center">{s.quantitySold}</td>
                   <td className="py-2 text-right">
                     {formatCurrency(s.revenue)}

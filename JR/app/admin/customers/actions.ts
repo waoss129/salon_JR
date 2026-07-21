@@ -171,24 +171,3 @@ export async function updateCustomerStatus(id: string, status: string) {
 
   revalidatePath("/admin/customers");
 }
-
-export async function deleteCustomer(id: string) {
-  await requireCustomerManager();
-
-  const supabase = await createAdminClient();
-
-  const { error: custError } = await supabase
-    .from("customers")
-    .delete()
-    .eq("id", id);
-  if (custError) {
-    throw new Error(
-      "Không thể xoá: khách hàng này vẫn còn lịch sử lịch hẹn liên quan.",
-    );
-  }
-
-  const { error: authError } = await supabase.auth.admin.deleteUser(id);
-  if (authError) throw authError;
-
-  revalidatePath("/admin/customers");
-}

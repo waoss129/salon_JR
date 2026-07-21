@@ -3,6 +3,7 @@
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendScheduleProposalEmail } from "@/lib/email/sendScheduleProposalEmail";
+import { sendScheduleConfirmedEmail } from "@/lib/email/sendScheduleConfirmedEmail";
 
 export type ProposalShiftInput = { date: string; sessionId: number };
 
@@ -23,8 +24,8 @@ export type NextWeekInfo = {
   weekendDates: string[]; // [Thứ 7, Chủ nhật] của tuần sau
 };
 
-const MIN_REGULAR_SHIFTS = 4;
-const MIN_SPECIAL_SHIFTS = 1;
+const MIN_REGULAR_DAYS = 4; // tối thiểu 4/5 ngày thường (Thứ 2 - Thứ 6)
+const MIN_SPECIAL_SHIFTS = 1; // tối thiểu 1 ca cuối tuần — được chọn cả Thứ 7 LẪN Chủ nhật nếu muốn, không giới hạn chỉ 1 trong 2 nữa
 
 // ============================================================
 // Quyền: chỉ role 1, 2, 3 được đề xuất lịch. Kiểm tra ở đây để báo lỗi
@@ -74,7 +75,17 @@ export async function getNextWeekInfo(): Promise<NextWeekInfo> {
   thisSaturday.setDate(thisMonday.getDate() + 5);
   thisSaturday.setHours(21, 0, 0, 0);
 
-  const toIso = (d: Date) => d.toISOString().slice(0, 10);
+  // KHÔNG dùng d.toISOString().slice(0, 10) ở đây — toISOString() quy đổi
+  // sang UTC, làm ngày bị lùi 1 hôm với múi giờ Việt Nam (UTC+7), khiến
+  // weekStart/weekEnd trả về sai lệch 1 ngày so với Thứ 2 thật (đây chính
+  // là lý do "tuần sau" trước đó bị tô nhầm bắt đầu từ Chủ nhật thay vì
+  // Thứ 2). Lấy trực tiếp năm/tháng/ngày theo giờ local thay vì convert UTC.
+  const toIso = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
   const weekdayDates = Array.from({ length: 5 }, (_, i) => {
     const d = new Date(nextMonday);
@@ -149,32 +160,204 @@ export async function getEmployeesByCategory(
   }));
 }
 
+// ============================================================
+// GIAI ĐOẠN B (tiếp) — NHÂN VIÊN XEM & CHỌN LẠI
+// ============================================================
+
+export type ProposalItemView = {
+  id: string;
+  date: string;
+  shiftType: "regular" | "special";
+  sessionId: number;
+  sessionName: string;
+  sessionShiftType: "SA" | "CH" | null;
+};
+
+export type MyProposalBatch = {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  deadlineIso: string;
+  status: "awaiting_employee" | "awaiting_admin" | "confirmed";
+  isPastDeadline: boolean;
+  items: ProposalItemView[];
+};
+
 /**
- * Tạo 1 gói đề xuất lịch cho 1 nhân viên, cho đúng tuần sau. Admin có thể
- * đề xuất nhiều hơn 1 ca/ngày (SA + CH cùng ngày), miễn tổng ca thường >= 4
- * và tổng ca đặc biệt >= 1 (để nhân viên còn dư mà chọn). Chưa ghi gì vào
- * bảng `schedules` thật — chỉ tạo bản đề xuất, chờ nhân viên chọn rồi admin
- * chốt (Giai đoạn B, C).
+ * Lấy đề xuất lịch của CHÍNH nhân viên đang đăng nhập cho tuần sau (nếu có).
+ */
+export async function getMyPendingProposal(): Promise<MyProposalBatch | null> {
+  const supabase = await createAdminAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Bạn cần đăng nhập lại.");
+
+  const { weekStart } = await getNextWeekInfo();
+
+  const { data: batch, error } = await supabase
+    .from("schedule_proposal_batches")
+    .select("id, week_start, week_end, deadline, status")
+    .eq("employee_id", user.id)
+    .eq("week_start", weekStart)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!batch) return null;
+
+  const { data: items, error: itemsError } = await supabase
+    .from("schedule_proposal_items")
+    .select(
+      "id, date, shift_type, session_id, session:sessions ( name, shift_type )",
+    )
+    .eq("batch_id", batch.id)
+    .order("date");
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  return {
+    id: batch.id,
+    weekStart: batch.week_start,
+    weekEnd: batch.week_end,
+    deadlineIso: batch.deadline,
+    status: batch.status,
+    isPastDeadline: new Date(batch.deadline) < new Date(),
+    items: (items ?? []).map((it: any) => ({
+      id: it.id,
+      date: it.date,
+      shiftType: it.shift_type,
+      sessionId: it.session_id,
+      sessionName: it.session?.name ?? "",
+      sessionShiftType: it.session?.shift_type ?? null,
+    })),
+  };
+}
+
+/**
+ * Nhân viên gửi lựa chọn CUỐI CÙNG cho batch của mình — được tự do giữ
+ * nguyên, đổi ca khác, hoặc thêm ngày admin chưa đề xuất. Ràng buộc vẫn
+ * giữ nguyên: mỗi ngày thường (T2-T6) chỉ 1 ca, tối thiểu 4/5 ngày; cuối
+ * tuần chọn tối thiểu 1, tối đa 2 ngày (T7 và/hoặc CN, độc lập nhau —
+ * KHÔNG loại trừ nhau như phía admin).
+ */
+export async function submitMyProposalSelection(input: {
+  batchId: string;
+  regularShifts: ProposalShiftInput[];
+  specialShifts: ProposalShiftInput[];
+}) {
+  const supabase = await createAdminAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Bạn cần đăng nhập lại.");
+
+  const { data: batch, error: batchErr } = await supabase
+    .from("schedule_proposal_batches")
+    .select("id, employee_id, deadline")
+    .eq("id", input.batchId)
+    .single();
+
+  if (batchErr || !batch) throw new Error("Không tìm thấy đề xuất lịch.");
+  if (batch.employee_id !== user.id) {
+    throw new Error("Bạn không có quyền sửa đề xuất này.");
+  }
+  if (new Date(batch.deadline) < new Date()) {
+    throw new Error(
+      "Đã quá hạn chọn ca (21:00 Thứ 7). Lịch đề xuất ban đầu đã tự động được áp dụng, vui lòng liên hệ Admin nếu cần thay đổi.",
+    );
+  }
+
+  const { weekdayDates, weekendDates } = await getNextWeekInfo();
+  const weekdaySet = new Set(weekdayDates);
+  const weekendSet = new Set(weekendDates);
+
+  if (input.regularShifts.some((s) => !weekdaySet.has(s.date))) {
+    throw new Error("Ca thường phải rơi vào Thứ 2 - Thứ 6 của tuần sau.");
+  }
+  if (input.specialShifts.some((s) => !weekendSet.has(s.date))) {
+    throw new Error(
+      "Ca cuối tuần phải rơi vào Thứ 7 hoặc Chủ nhật của tuần sau.",
+    );
+  }
+
+  const regularDates = new Set(input.regularShifts.map((s) => s.date));
+  if (regularDates.size !== input.regularShifts.length) {
+    throw new Error("Mỗi ngày thường chỉ được chọn 1 ca (Sáng hoặc Chiều).");
+  }
+  if (regularDates.size < MIN_REGULAR_DAYS) {
+    throw new Error(`Cần chọn ít nhất ${MIN_REGULAR_DAYS}/5 ngày thường.`);
+  }
+
+  const specialDates = new Set(input.specialShifts.map((s) => s.date));
+  if (specialDates.size !== input.specialShifts.length) {
+    throw new Error("Mỗi ngày cuối tuần chỉ được chọn 1 ca.");
+  }
+  if (specialDates.size < 1) {
+    throw new Error(
+      "Cần chọn ít nhất 1 ngày cuối tuần (Thứ 7 và/hoặc Chủ nhật).",
+    );
+  }
+
+  // Thay toàn bộ items cũ bằng lựa chọn cuối cùng của nhân viên (đơn giản và
+  // chắc chắn hơn là dò từng thay đổi, vì nhân viên có thể đổi hẳn sang ca
+  // khác admin chưa từng đề xuất).
+  const { error: deleteError } = await supabase
+    .from("schedule_proposal_items")
+    .delete()
+    .eq("batch_id", input.batchId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  const newItems = [
+    ...input.regularShifts.map((s) => ({
+      batch_id: input.batchId,
+      session_id: s.sessionId,
+      date: s.date,
+      shift_type: "regular" as const,
+    })),
+    ...input.specialShifts.map((s) => ({
+      batch_id: input.batchId,
+      session_id: s.sessionId,
+      date: s.date,
+      shift_type: "special" as const,
+    })),
+  ];
+
+  const { error: insertError } = await supabase
+    .from("schedule_proposal_items")
+    .insert(newItems);
+  if (insertError) throw new Error(insertError.message);
+
+  const { error: updateBatchError } = await supabase
+    .from("schedule_proposal_batches")
+    .update({
+      status: "awaiting_admin",
+      employee_responded_at: new Date().toISOString(),
+    })
+    .eq("id", input.batchId);
+  if (updateBatchError) throw new Error(updateBatchError.message);
+
+  revalidatePath("/admin/schedule-proposal");
+  revalidatePath("/admin/schedules");
+}
+
+/**
+ * Tạo 1 gói đề xuất lịch cho 1 nhân viên, cho đúng tuần sau.
+ * Ràng buộc: mỗi ngày Thứ 2 - Thứ 6 chỉ được 1 ca (Sáng hoặc Chiều), tối
+ * thiểu 4/5 ngày phải có ca; cuối tuần tối thiểu 1 ngày (Thứ 7 và/hoặc
+ * Chủ nhật, được chọn cả 2 nếu muốn), mỗi ngày cuối tuần cũng chỉ 1 ca.
+ * Chưa ghi gì vào bảng `schedules` thật — chỉ tạo bản đề xuất, chờ nhân
+ * viên chọn rồi admin chốt (Giai đoạn B, C).
  */
 export async function createScheduleProposal(input: {
   employeeId: string;
-  regularShifts: ProposalShiftInput[]; // ca cho các ngày Thứ 2 - Thứ 6 của tuần sau, không giới hạn 1 ca/ngày
-  specialShifts: ProposalShiftInput[]; // ca cho Thứ 7 / Chủ nhật của tuần sau, không giới hạn 1 ca/ngày
+  regularShifts: ProposalShiftInput[]; // mỗi ngày Thứ 2 - Thứ 6 CHỈ được 1 ca (Sáng hoặc Chiều)
+  specialShifts: ProposalShiftInput[]; // cuối tuần: tối thiểu 1 ngày, được chọn cả Thứ 7 lẫn Chủ nhật nếu muốn
 }) {
   await requireScheduleManager();
 
   const supabase = await createAdminAuthClient();
   const { weekStart, weekEnd, deadlineIso, weekdayDates, weekendDates } =
     await getNextWeekInfo();
-
-  if (input.regularShifts.length < MIN_REGULAR_SHIFTS) {
-    throw new Error(
-      `Cần đề xuất ít nhất ${MIN_REGULAR_SHIFTS} ca thường để nhân viên có đủ để chọn.`,
-    );
-  }
-  if (input.specialShifts.length < MIN_SPECIAL_SHIFTS) {
-    throw new Error(`Cần đề xuất ít nhất ${MIN_SPECIAL_SHIFTS} ca đặc biệt.`);
-  }
 
   const weekdaySet = new Set(weekdayDates);
   const weekendSet = new Set(weekendDates);
@@ -185,6 +368,38 @@ export async function createScheduleProposal(input: {
   if (input.specialShifts.some((s) => !weekendSet.has(s.date))) {
     throw new Error(
       "Ca đặc biệt phải rơi vào Thứ 7 hoặc Chủ nhật của tuần sau.",
+    );
+  }
+
+  // Mỗi ngày thường chỉ được đúng 1 ca (Sáng HOẶC Chiều, không cả 2).
+  const regularDateCounts = new Map<string, number>();
+  for (const s of input.regularShifts) {
+    regularDateCounts.set(s.date, (regularDateCounts.get(s.date) ?? 0) + 1);
+  }
+  for (const [date, count] of regularDateCounts) {
+    if (count > 1) {
+      throw new Error(
+        `Ngày ${date} chỉ được chọn 1 ca (Sáng hoặc Chiều), không được cả 2.`,
+      );
+    }
+  }
+
+  // Tối thiểu 4/5 ngày thường phải có ca.
+  if (regularDateCounts.size < MIN_REGULAR_DAYS) {
+    throw new Error(
+      `Cần chọn ca cho ít nhất ${MIN_REGULAR_DAYS}/5 ngày thường (Thứ 2 - Thứ 6).`,
+    );
+  }
+
+  // Mỗi ngày cuối tuần cũng chỉ được đúng 1 ca (giống ngày thường) — nhưng
+  // được chọn CẢ Thứ 7 lẫn Chủ nhật nếu muốn, không giới hạn chỉ 1 trong 2.
+  const specialDates = new Set(input.specialShifts.map((s) => s.date));
+  if (specialDates.size !== input.specialShifts.length) {
+    throw new Error("Mỗi ngày cuối tuần chỉ được chọn 1 ca.");
+  }
+  if (specialDates.size < MIN_SPECIAL_SHIFTS) {
+    throw new Error(
+      "Cần chọn ít nhất 1 ngày cuối tuần (Thứ 7 và/hoặc Chủ nhật).",
     );
   }
 
@@ -273,46 +488,29 @@ export async function createScheduleProposal(input: {
   let emailError: string | undefined;
 
   if (profile?.email) {
-    const emailShifts = [
-      ...input.regularShifts.map((s) => ({
-        date: s.date,
-        shiftType: "regular" as const,
-      })),
-      ...input.specialShifts.map((s) => ({
-        date: s.date,
-        shiftType: "special" as const,
-      })),
-    ];
-
-    // Cần tên ca (Sáng/Chiều) để hiển thị trong mail — tra lại từ bảng sessions.
+    // Cần tên ca (Sáng/Chiều) để hiển thị trong mail — tra lại từ bảng sessions,
+    // dùng đúng cột shift_type thay vì đoán qua tên.
     const sessionIds = [...input.regularShifts, ...input.specialShifts].map(
       (s) => s.sessionId,
     );
     const { data: sessionRows } = await supabase
       .from("sessions")
-      .select("id, name")
+      .select("id, shift_type")
       .in("id", sessionIds);
-    const sessionNameMap = new Map(
-      (sessionRows ?? []).map((s) => [s.id, s.name]),
+    const sessionShiftMap = new Map(
+      (sessionRows ?? []).map((s) => [s.id, s.shift_type]),
     );
 
     const shiftsForEmail = [
       ...input.regularShifts.map((s) => ({
         date: s.date,
-        shiftLabel: (sessionNameMap.get(s.sessionId) ?? "")
-          .toUpperCase()
-          .startsWith("SA")
-          ? "Sáng"
-          : "Chiều",
+        shiftLabel:
+          sessionShiftMap.get(s.sessionId) === "CH" ? "Chiều" : "Sáng",
         isSpecial: false,
       })),
       ...input.specialShifts.map((s) => ({
         date: s.date,
-        shiftLabel: (sessionNameMap.get(s.sessionId) ?? "")
-          .toUpperCase()
-          .startsWith("SA")
-          ? "Sáng"
-          : "Chiều",
+        shiftLabel: "Cả ngày",
         isSpecial: true,
       })),
     ];
@@ -332,4 +530,176 @@ export async function createScheduleProposal(input: {
   }
 
   return { batchId: batch.id as string, emailSent, emailError };
+}
+
+// ============================================================
+// GIAI ĐOẠN C — ADMIN DUYỆT & CHỐT LỊCH
+// ============================================================
+
+export type ProposalBatchSummary = {
+  batchId: string;
+  employeeId: string;
+  employeeName: string;
+  weekStart: string;
+  weekEnd: string;
+  deadlineIso: string;
+  status: "awaiting_employee" | "awaiting_admin" | "confirmed";
+  isPastDeadline: boolean;
+  items: {
+    date: string;
+    shiftType: "regular" | "special";
+    sessionName: string;
+    sessionShiftType: "SA" | "CH" | null;
+  }[];
+};
+
+/**
+ * Lấy toàn bộ đề xuất lịch (mọi nhân viên) cho tuần sau, kèm các ca đang
+ * ĐƯỢC CHỌN (is_selected = true) — dù nhân viên đã tự chọn, hay do quá hạn
+ * nên giữ mặc định (is_selected vẫn true từ lúc tạo).
+ */
+export async function getProposalsForNextWeek(): Promise<
+  ProposalBatchSummary[]
+> {
+  await requireScheduleManager();
+  const supabase = await createAdminAuthClient();
+  const { weekStart } = await getNextWeekInfo();
+
+  const { data: batches, error } = await supabase
+    .from("schedule_proposal_batches")
+    .select(
+      `
+      id, employee_id, week_start, week_end, deadline, status,
+      employee:employees ( profile:profiles!fk_employees_profiles ( fullname ) )
+    `,
+    )
+    .eq("week_start", weekStart)
+    .order("created_at");
+
+  if (error) throw new Error(error.message);
+  if (!batches || batches.length === 0) return [];
+
+  const batchIds = batches.map((b) => b.id);
+  const { data: items, error: itemsError } = await supabase
+    .from("schedule_proposal_items")
+    .select("batch_id, date, shift_type, session:sessions ( name, shift_type )")
+    .in("batch_id", batchIds)
+    .eq("is_selected", true)
+    .order("date");
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  const itemsByBatch = new Map<string, any[]>();
+  for (const it of items ?? []) {
+    const arr = itemsByBatch.get(it.batch_id) ?? [];
+    arr.push(it);
+    itemsByBatch.set(it.batch_id, arr);
+  }
+
+  const now = new Date();
+  return (batches as any[]).map((b) => ({
+    batchId: b.id,
+    employeeId: b.employee_id,
+    employeeName: b.employee?.profile?.fullname ?? "—",
+    weekStart: b.week_start,
+    weekEnd: b.week_end,
+    deadlineIso: b.deadline,
+    status: b.status,
+    isPastDeadline: new Date(b.deadline) < now,
+    items: (itemsByBatch.get(b.id) ?? []).map((it: any) => ({
+      date: it.date,
+      shiftType: it.shift_type,
+      sessionName: it.session?.name ?? "",
+      sessionShiftType: it.session?.shift_type ?? null,
+    })),
+  }));
+}
+
+/**
+ * Admin chốt 1 batch: copy các ca đang được chọn (is_selected = true) thành
+ * dòng thật trong bảng `schedules` (status = 'assigned'), đánh dấu batch đã
+ * confirmed, rồi gửi mail #2 báo cho nhân viên biết lịch đã chốt.
+ */
+export async function confirmProposalBatch(batchId: string) {
+  await requireScheduleManager();
+  const supabase = await createAdminAuthClient();
+
+  const { data: batch, error: batchErr } = await supabase
+    .from("schedule_proposal_batches")
+    .select("id, employee_id, status")
+    .eq("id", batchId)
+    .single();
+
+  if (batchErr || !batch) throw new Error("Không tìm thấy đề xuất lịch.");
+  if (batch.status === "confirmed") {
+    throw new Error("Đề xuất này đã được chốt trước đó, không thể chốt lại.");
+  }
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("schedule_proposal_items")
+    .select("session_id, date, shift_type, session:sessions ( shift_type )")
+    .eq("batch_id", batchId)
+    .eq("is_selected", true);
+
+  if (itemsErr) throw new Error(itemsErr.message);
+  if (!items || items.length === 0) {
+    throw new Error(
+      "Không có ca nào được chọn để chốt — không thể tạo lịch rỗng.",
+    );
+  }
+
+  const scheduleRows = items.map((it) => ({
+    employee_id: batch.employee_id,
+    session_id: it.session_id,
+    date: it.date,
+    status: "assigned" as const,
+  }));
+
+  const { error: insertErr } = await supabase
+    .from("schedules")
+    .insert(scheduleRows);
+  if (insertErr) throw new Error(insertErr.message);
+
+  const { error: updateErr } = await supabase
+    .from("schedule_proposal_batches")
+    .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
+    .eq("id", batchId);
+  if (updateErr) throw new Error(updateErr.message);
+
+  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/schedule-proposal/review");
+
+  // Gửi mail #2 — KHÔNG để lỗi mail làm hỏng việc chốt lịch (đã lưu thành
+  // công vào schedules rồi, chỉ là chưa báo được cho nhân viên qua email).
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("fullname, email")
+    .eq("id", batch.employee_id)
+    .single();
+
+  if (!profile?.email) {
+    return {
+      emailSent: false,
+      emailError: "Nhân viên chưa có email trong hồ sơ.",
+    };
+  }
+
+  const shiftsForEmail = items.map((it: any) => ({
+    date: it.date,
+    shiftLabel:
+      it.shift_type === "special"
+        ? "Cả ngày"
+        : it.session?.shift_type === "CH"
+          ? "Chiều"
+          : "Sáng",
+    isSpecial: it.shift_type === "special",
+  }));
+
+  const result = await sendScheduleConfirmedEmail({
+    toEmail: profile.email,
+    employeeName: profile.fullname ?? "bạn",
+    shifts: shiftsForEmail,
+  });
+
+  return { emailSent: result.success, emailError: result.error };
 }

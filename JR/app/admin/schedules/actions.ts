@@ -21,6 +21,10 @@ export type SessionRow = {
   name: string;
   start_time: string;
   end_time: string;
+  // day_of_week: 1 = Thứ 2 ... 6 = Thứ 7, 7 = Chủ nhật (theo CHECK constraint
+  // của bảng sessions: day_of_week >= 1 AND day_of_week <= 7).
+  day_of_week: number | null;
+  shift_type: "SA" | "CH" | null;
 };
 
 export type EmployeeOption = {
@@ -33,12 +37,21 @@ export type EmployeeOption = {
 
 /**
  * Lấy danh sách ca làm việc (dùng cho form thêm lịch, checkbox sáng/chiều)
+ *
+ * LƯU Ý: trước đây hàm này chỉ SELECT id, name, start_time, end_time — thiếu
+ * day_of_week và shift_type dù bảng sessions đã có sẵn 2 cột này. Hậu quả:
+ * mọi nơi cần biết "ca này áp dụng ngày nào trong tuần" (MyProposalForm,
+ * ProposeScheduleModal, AddScheduleForm) không có dữ liệu thật để dùng —
+ * MyProposalForm thì lấy phải giá trị undefined, còn 2 chỗ kia phải tự suy
+ * luận qua tên session (dễ vỡ nếu đặt tên không đúng quy ước). Sửa lại lấy
+ * đủ 2 cột để mọi nơi tiêu thụ SessionRow đều dùng chung 1 nguồn dữ liệu
+ * đúng, không cần đoán qua tên nữa.
  */
 export async function getSessions(): Promise<SessionRow[]> {
   const supabase = await createAdminAuthClient();
   const { data, error } = await supabase
     .from("sessions")
-    .select("id, name, start_time, end_time")
+    .select("id, name, start_time, end_time, day_of_week, shift_type")
     .order("start_time");
 
   if (error) throw new Error(error.message);

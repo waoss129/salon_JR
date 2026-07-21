@@ -214,6 +214,25 @@ export default function StaffDetailForm({
             </div>
           )}
         </div>
+
+        <div className="mt-4 pt-4 border-t border-dashed border-slate-200">
+          <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+            Lương cứng / tháng (VNĐ)
+          </label>
+          <input
+            type="number"
+            name="base_salary"
+            min={0}
+            step={100000}
+            defaultValue={data.base_salary ?? 0}
+            placeholder="10000000"
+            className="border rounded-lg px-3 py-2 w-full max-w-xs text-sm"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            Dùng để tính Thống kê lương — không hiển thị cho nhân viên khác
+            ngoài Admin/CEO.
+          </p>
+        </div>
       </div>
 
       <button
