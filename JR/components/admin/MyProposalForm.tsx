@@ -23,6 +23,19 @@ function dateDayOfWeek(dateStr: string): number {
   return new Date(y, m - 1, d).getDay();
 }
 
+// Format ngày theo giờ LOCAL, dạng YYYY-MM-DD — KHÔNG dùng d.toISOString()
+// ở đây. toISOString() quy đổi sang UTC: với múi giờ Việt Nam (UTC+7), nửa
+// đêm giờ VN của 1 ngày bị lùi về 17h hôm trước theo UTC, khiến chuỗi ngày
+// trả về bị lùi mất 1 ngày so với ngày thực tế trên lịch — đây chính là lỗi
+// đã gặp và sửa ở ProposeScheduleModal.tsx / getNextWeekInfo() (server),
+// nhưng bị bỏ sót ở file này vì trước đó chưa có dữ liệu thật để lộ ra.
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function formatDateLabel(dateStr: string) {
   const dow = dateDayOfWeek(dateStr);
   const d = Number(dateStr.slice(8, 10));
@@ -63,7 +76,7 @@ export default function MyProposalForm({
     for (let i = 0; i < 5; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      set.add(d.toISOString().slice(0, 10));
+      set.add(toLocalISODate(d));
     }
     return Array.from(set).sort();
   }, [proposal]);
@@ -74,7 +87,7 @@ export default function MyProposalForm({
     return [5, 6].map((offset) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + offset);
-      return d.toISOString().slice(0, 10);
+      return toLocalISODate(d);
     });
   }, [proposal]);
 

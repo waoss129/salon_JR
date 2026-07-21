@@ -24,6 +24,21 @@ export type NextWeekInfo = {
   weekendDates: string[]; // [Thứ 7, Chủ nhật] của tuần sau
 };
 
+export type PendingProposalItem = {
+  id: string; // batch id
+  label: string; // text hiện trong dropdown thông báo
+  weekStart: string;
+};
+
+export type PendingProposalsSummary = {
+  // "Đề xuất của tôi" — đề xuất người đang đăng nhập cần vào tự chọn ca.
+  // Chỉ có dữ liệu nếu role hiện tại thuộc nhóm được đề xuất lịch (3, 4, 5).
+  ownPending: { count: number; items: PendingProposalItem[] };
+  // "Cần duyệt" — đề xuất của NGƯỜI KHÁC đang chờ người đang đăng nhập chốt.
+  // Chỉ có dữ liệu nếu role hiện tại thuộc nhóm được duyệt lịch (1, 2, 3).
+  reviewPending: { count: number; items: PendingProposalItem[] };
+};
+
 const MIN_REGULAR_DAYS = 4; // tối thiểu 4/5 ngày thường (Thứ 2 - Thứ 6)
 const MIN_SPECIAL_SHIFTS = 1; // tối thiểu 1 ca cuối tuần — được chọn cả Thứ 7 LẪN Chủ nhật nếu muốn, không giới hạn chỉ 1 trong 2 nữa
 
@@ -106,6 +121,81 @@ export async function getNextWeekInfo(): Promise<NextWeekInfo> {
     weekdayDates,
     weekendDates,
   };
+}
+
+/**
+ * Số lượng + danh sách đề xuất lịch đang chờ xử lý, dùng cho chuông thông
+ * báo ở header. Trả về CẢ 2 phần, tuỳ role hiện tại mà phần nào có dữ liệu:
+ *  - ownPending: role 3, 4, 5 (đều là nhân viên có thể được đề xuất lịch)
+ *    — đề xuất của CHÍNH mình đang ở trạng thái 'awaiting_employee'.
+ *  - reviewPending: role 1, 2, 3 (được quyền duyệt lịch) — TOÀN BỘ đề xuất
+ *    đang ở trạng thái 'awaiting_admin', chờ chốt.
+ * Role 3 (Quản lý) có cả 2 vai nên cả 2 phần đều có dữ liệu; role 4, 5 chỉ
+ * có ownPending; role 1, 2 chỉ có reviewPending.
+ */
+export async function getPendingProposalsSummary(): Promise<PendingProposalsSummary> {
+  const empty = { count: 0, items: [] as PendingProposalItem[] };
+  const supabase = await createAdminAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ownPending: empty, reviewPending: empty };
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("role_id")
+    .eq("id", user.id)
+    .single();
+
+  const roleId = employee?.role_id ?? null;
+
+  let ownPending = empty;
+  let reviewPending = empty;
+
+  // Nhân viên có thể được đề xuất lịch: Quản lý (3), Chuyên viên (4), Lễ tân (5).
+  if (roleId && [3, 4, 5].includes(roleId)) {
+    const { data: batches, error } = await supabase
+      .from("schedule_proposal_batches")
+      .select("id, week_start")
+      .eq("employee_id", user.id)
+      .eq("status", "awaiting_employee")
+      .order("week_start");
+
+    if (error) throw new Error(error.message);
+
+    ownPending = {
+      count: batches?.length ?? 0,
+      items: (batches ?? []).map((b) => ({
+        id: b.id,
+        label: `Lịch tuần ${b.week_start} đang chờ bạn chọn`,
+        weekStart: b.week_start,
+      })),
+    };
+  }
+
+  // Người được duyệt lịch: Admin (1), CEO (2), Quản lý (3).
+  if (roleId && [1, 2, 3].includes(roleId)) {
+    const { data: batches, error } = await supabase
+      .from("schedule_proposal_batches")
+      .select(
+        "id, week_start, employee:employees!schedule_proposal_batches_employee_id_fkey ( profile:profiles!fk_employees_profiles ( fullname ) )",
+      )
+      .eq("status", "awaiting_admin")
+      .order("week_start");
+
+    if (error) throw new Error(error.message);
+
+    reviewPending = {
+      count: batches?.length ?? 0,
+      items: (batches ?? []).map((b: any) => ({
+        id: b.id,
+        label: `${b.employee?.profile?.fullname ?? "Nhân viên"} đã chọn xong lịch tuần ${b.week_start}, chờ chốt`,
+        weekStart: b.week_start,
+      })),
+    };
+  }
+
+  return { ownPending, reviewPending };
 }
 
 /**
@@ -570,7 +660,7 @@ export async function getProposalsForNextWeek(): Promise<
     .select(
       `
       id, employee_id, week_start, week_end, deadline, status,
-      employee:employees ( profile:profiles!fk_employees_profiles ( fullname ) )
+      employee:employees!schedule_proposal_batches_employee_id_fkey ( profile:profiles!fk_employees_profiles ( fullname ) )
     `,
     )
     .eq("week_start", weekStart)

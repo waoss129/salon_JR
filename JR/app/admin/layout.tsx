@@ -5,13 +5,24 @@ import { usePathname, useRouter } from "next/navigation";
 import { createAdminBrowserClient } from "@/lib/supabase/client";
 import { logoutAction } from "@/app/admin/accounts/logout-action";
 import { getPendingAppointmentsSummary } from "@/app/admin/appointments/actions";
+import { getPendingProposalsSummary } from "@/app/admin/schedules/proposals/actions";
 import { canView } from "@/lib/supabase/permissions";
 
-type PendingItem = {
+type PendingAppointmentItem = {
   id: string;
+  kind: "appointment";
   appointment_date: string;
   customerName: string | null;
 };
+
+type PendingProposalItem = {
+  id: string;
+  kind: "proposal";
+  label: string;
+  weekStart: string;
+};
+
+type NotificationItem = PendingAppointmentItem | PendingProposalItem;
 
 export default function AdminLayout({
   children,
@@ -31,14 +42,48 @@ export default function AdminLayout({
   const [openThongKe, setOpenThongKe] = useState(false);
 
   const [pendingCount, setPendingCount] = useState<number>(0);
-  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [pendingItems, setPendingItems] = useState<PendingAppointmentItem[]>(
+    [],
+  );
+  const [ownProposalCount, setOwnProposalCount] = useState<number>(0);
+  const [ownProposalItems, setOwnProposalItems] = useState<
+    PendingProposalItem[]
+  >([]);
+  const [reviewProposalCount, setReviewProposalCount] = useState<number>(0);
+  const [reviewProposalItems, setReviewProposalItems] = useState<
+    PendingProposalItem[]
+  >([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
   const loadPendingSummary = useCallback(async () => {
     try {
       const summary = await getPendingAppointmentsSummary();
       setPendingCount(summary.count);
-      setPendingItems(summary.items);
+      setPendingItems(
+        summary.items.map((item) => ({ ...item, kind: "appointment" })),
+      );
+    } catch {
+      // im lặng bỏ qua lỗi tải thông báo, không chặn giao diện chính
+    }
+  }, []);
+
+  // Đề xuất lịch làm việc — role 3/4/5 thấy "của tôi" (đang chờ mình chọn),
+  // role 1/2/3 thấy "cần duyệt" (nhân viên đã chọn xong, chờ chốt). Role 3
+  // (Quản lý) có cả 2, nên tách riêng 2 state thay vì gộp chung 1 số.
+  const loadPendingProposalSummary = useCallback(async () => {
+    try {
+      const summary = await getPendingProposalsSummary();
+      setOwnProposalCount(summary.ownPending.count);
+      setOwnProposalItems(
+        summary.ownPending.items.map((item) => ({ ...item, kind: "proposal" })),
+      );
+      setReviewProposalCount(summary.reviewPending.count);
+      setReviewProposalItems(
+        summary.reviewPending.items.map((item) => ({
+          ...item,
+          kind: "proposal",
+        })),
+      );
     } catch {
       // im lặng bỏ qua lỗi tải thông báo, không chặn giao diện chính
     }
@@ -73,6 +118,7 @@ export default function AdminLayout({
     if (pathname === "/admin/login") return;
 
     loadPendingSummary();
+    loadPendingProposalSummary();
 
     const channel = supabase
       .channel("admin-appointments-notifications")
@@ -86,12 +132,17 @@ export default function AdminLayout({
         { event: "UPDATE", schema: "public", table: "appointments" },
         () => loadPendingSummary(),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "schedule_proposal_batches" },
+        () => loadPendingProposalSummary(),
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [pathname, supabase, loadPendingSummary]);
+  }, [pathname, supabase, loadPendingSummary, loadPendingProposalSummary]);
 
   if (pathname === "/admin/login") {
     return (
@@ -104,6 +155,9 @@ export default function AdminLayout({
   const handleLogout = async () => {
     await logoutAction();
   };
+
+  const totalNotificationCount =
+    pendingCount + ownProposalCount + reviewProposalCount;
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: "#f9fafb" }}>
@@ -226,6 +280,38 @@ export default function AdminLayout({
               </Link>
             )}
 
+            {/* Role 3, 4, 5 (Quản lý, Chuyên viên, Lễ tân): trang tự chọn ca
+                cho đề xuất lịch tuần sau — cả 3 đều có thể được đề xuất lịch. */}
+            {roleId != null && [3, 4, 5].includes(roleId) && (
+              <Link
+                href="/admin/schedule-proposal"
+                className="flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                <span>Đề Xuất Lịch Của Tôi</span>
+                {ownProposalCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    {ownProposalCount > 9 ? "9+" : ownProposalCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {/* Role 1, 2, 3 (Admin, CEO, Quản lý): trang duyệt đề xuất lịch
+                của nhân viên khác. Quản lý (3) thấy CẢ 2 link này. */}
+            {roleId != null && [1, 2, 3].includes(roleId) && (
+              <Link
+                href="/admin/schedule-proposal/review"
+                className="flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition"
+              >
+                <span>Duyệt Đề Xuất Lịch</span>
+                {reviewProposalCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    {reviewProposalCount > 9 ? "9+" : reviewProposalCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
             {canView(roleId, "appointments") && (
               <Link
                 href="/admin/appointments"
@@ -337,19 +423,20 @@ export default function AdminLayout({
                   />
                 </svg>
                 <span>Thông báo</span>
-                {pendingCount > 0 && (
+                {totalNotificationCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                    {pendingCount > 9 ? "9+" : pendingCount}
+                    {totalNotificationCount > 9 ? "9+" : totalNotificationCount}
                   </span>
                 )}
               </button>
 
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-80 bg-white text-slate-800 rounded-lg shadow-lg border border-slate-200 z-50">
+                  {/* Lịch hẹn chờ xác nhận */}
                   <div className="p-3 border-b font-semibold text-sm">
                     Lịch hẹn chờ xác nhận ({pendingCount})
                   </div>
-                  <div className="max-h-72 overflow-y-auto">
+                  <div className="max-h-56 overflow-y-auto">
                     {pendingItems.length === 0 && (
                       <div className="p-3 text-sm text-gray-400 text-center">
                         Không có lịch hẹn nào đang chờ
@@ -381,10 +468,66 @@ export default function AdminLayout({
                       setShowNotifications(false);
                       router.push("/admin/appointments");
                     }}
-                    className="w-full p-2 text-center text-xs text-violet-600 hover:bg-slate-50 font-medium"
+                    className="w-full p-2 text-center text-xs text-violet-600 hover:bg-slate-50 font-medium border-b"
                   >
                     Xem tất cả lịch hẹn
                   </button>
+
+                  {/* Đề xuất lịch của tôi — role 3/4/5 */}
+                  {[3, 4, 5].includes(roleId ?? -1) && (
+                    <>
+                      <div className="p-3 border-b font-semibold text-sm">
+                        Đề xuất lịch của tôi ({ownProposalCount})
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        {ownProposalItems.length === 0 && (
+                          <div className="p-3 text-sm text-gray-400 text-center">
+                            Không có đề xuất nào đang chờ bạn chọn
+                          </div>
+                        )}
+                        {ownProposalItems.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setShowNotifications(false);
+                              router.push("/admin/schedule-proposal");
+                            }}
+                            className="w-full text-left p-3 border-b last:border-b-0 hover:bg-slate-50 text-sm"
+                          >
+                            <div className="font-medium">{item.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Đề xuất lịch cần duyệt — role 1/2/3 */}
+                  {[1, 2, 3].includes(roleId ?? -1) && (
+                    <>
+                      <div className="p-3 border-b font-semibold text-sm">
+                        Đề xuất lịch cần duyệt ({reviewProposalCount})
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        {reviewProposalItems.length === 0 && (
+                          <div className="p-3 text-sm text-gray-400 text-center">
+                            Không có đề xuất nào đang chờ duyệt
+                          </div>
+                        )}
+                        {reviewProposalItems.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setShowNotifications(false);
+                              router.push("/admin/schedule-proposal/review");
+                            }}
+                            className="w-full text-left p-3 border-b last:border-b-0 hover:bg-slate-50 text-sm"
+                          >
+                            <div className="font-medium">{item.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
