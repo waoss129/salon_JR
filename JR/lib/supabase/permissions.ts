@@ -42,7 +42,7 @@ export const PERMISSIONS: Record<
   schedules: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3] },
 
   // Role 4 chỉ xem lịch hẹn, không sửa.
-  appointments: { view: [1, 2, 3, 4, 5], manage: [1, 3, 5] },
+  appointments: { view: [1, 2, 3, 4, 5], manage: [1, 3] },
 
   // Role 2 (CEO) chỉ xem hóa đơn, không được thêm/sửa.
   bills: { view: [1, 2, 3, 5], manage: [1, 3, 5] },

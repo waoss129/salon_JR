@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 import { requireViewAction } from "@/lib/supabase/admin-guard";
 
 const STAFF_ROLE_IDS = [3, 4, 5];
@@ -69,7 +69,7 @@ export async function getPayrollStatistics(params: {
   month: number; // 1-12
 }): Promise<PayrollRow[]> {
   await requireViewAction("statistics");
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const startDate = `${params.year}-${String(params.month).padStart(2, "0")}-01`;
   const lastDay = new Date(params.year, params.month, 0).getDate();

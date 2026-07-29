@@ -12,6 +12,11 @@ export function ActivationForm({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // So khớp ngay khi gõ — chỉ báo khi ô "Nhập lại" đã có ký tự, tránh báo
+  // đỏ ngay từ đầu lúc ô còn trống.
+  const confirmMismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -47,7 +52,7 @@ export function ActivationForm({ token }: { token: string }) {
           onChange={(e) => setEmail(e.target.value)}
           required
           className="w-full border rounded px-2 py-1.5"
-          placeholder="ban@example.com"
+          placeholder="email@gmail.com"
         />
         <p className="text-xs text-gray-400 mt-1">
           Lưu ý: email này sẽ không thể thay đổi sau khi kích hoạt.
@@ -76,8 +81,15 @@ export function ActivationForm({ token }: { token: string }) {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
           minLength={8}
-          className="w-full border rounded px-2 py-1.5"
+          className={`w-full border rounded px-2 py-1.5 ${
+            confirmMismatch ? "border-red-400" : ""
+          }`}
         />
+        {confirmMismatch && (
+          <p className="text-xs text-red-600 mt-1">
+            Mật khẩu nhập lại chưa khớp
+          </p>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

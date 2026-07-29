@@ -25,8 +25,8 @@ const Footer = () => {
             Hoặc bạn cũng có thể liên hệ trực tiếp với chúng tôi:
           </p>
           <p className="font-bold text-gray-900 mb-2">Điện thoại: 1900 1234</p>
-          <p className="text-gray-600">Thứ Hai đến Thứ Sáu: 8:00 - 17:00</p>
-          <p className="text-gray-600 mb-4">Thứ Bảy: 9:00 - 18:00</p>
+          <p className="text-gray-600">Thứ Hai đến Thứ Sáu: 9:00 - 21:00</p>
+          <p className="text-gray-600 mb-4">Thứ Bảy - Chủ Nhật: 9:00 - 17:00</p>
           <Link href="/contact" className="text-blue-600 hover:underline">
             Gửi email cho chúng tôi
           </Link>

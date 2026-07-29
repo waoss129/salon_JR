@@ -80,7 +80,6 @@ export async function getAppointmentStats(): Promise<AppointmentStats> {
 
 // ============================================================
 // DOANH THU — chỉ gọi cho role có quyền xem thống kê (bills RLS chỉ
-// cho phép role 1,2,3,5 đọc; KHÔNG gọi các hàm này cho role 4).
 // ============================================================
 
 export async function getTodayRevenueEstimate(): Promise<number> {

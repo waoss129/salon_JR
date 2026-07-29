@@ -58,7 +58,7 @@ export async function createAppointment(params: {
   const hours = getBusinessHoursForDate(params.date);
   if (!hours) {
     throw new Error(
-      "JoyRide không mở cửa vào Chủ Nhật, vui lòng chọn ngày khác",
+      "JoyRide không mở cửa vào ngày này, vui lòng chọn ngày khác",
     );
   }
   const slotHour = Number(params.time.split(":")[0]);

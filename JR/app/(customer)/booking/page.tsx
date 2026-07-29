@@ -25,9 +25,9 @@ function BookingContent() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
-  const selectDate = date ? new Date(date) : null;
-  const dayOfWeek = selectDate ? selectDate.getDay() : -1;
-  const isSunday = dayOfWeek === 0;
+  // const selectDate = date ? new Date(date) : null;
+  // const dayOfWeek = selectDate ? selectDate.getDay() : -1;
+  // const isSunday = dayOfWeek === 0;
 
   const slots = date ? getTimeSlotsForDate(date) : [];
 
@@ -104,15 +104,16 @@ function BookingContent() {
             }}
             className="w-full p-4 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
           />
-          {isSunday && (
+          {/* {isSunday && (
             <p className="text-orange-500 text-sm mt-3 font-medium bg-orange-50 p-3 rounded-lg border border-orange-100">
               Chủ Nhật JoyRide tạm nghỉ để nạp năng lượng xinh đẹp, bạn chọn
               ngày khác giúp mình nha!
             </p>
-          )}
+          )} */}
         </div>
 
-        {date && !isSunday && (
+        {date && (
+          //{date && !isSunday && (
           <div className="animate-in fade-in slide-in-from-top-2">
             <label className="block text-sm font-bold text-stone-700 mb-2">
               Chọn khung giờ
@@ -190,7 +191,8 @@ function BookingContent() {
 
         <button
           onClick={handleConfirm}
-          disabled={!date || !time || isSunday || submitting}
+          //disabled={!date || !time || isSunday || submitting}
+          disabled={!date || !time || submitting}
           className="w-full mt-8 bg-orange-400 text-white py-4 rounded-2xl font-bold hover:bg-orange-500 disabled:bg-orange-100 transition-all shadow-lg"
         >
           {submitting ? "Đang xử lý..." : "XÁC NHẬN ĐẶT LỊCH"}

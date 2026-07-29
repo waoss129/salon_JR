@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminAuthClient } from "@/lib/supabase/server";
 import { requireViewAction } from "@/lib/supabase/admin-guard";
 
 const STAFF_ROLE_IDS = [3, 4, 5];
@@ -31,6 +31,13 @@ export type DaysOffRow = {
   daysOff: number;
 };
 
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function enumerateDates(start: string, end: string): string[] {
   const dates: string[] = [];
   const [sy, sm, sd] = start.split("-").map(Number);
@@ -38,7 +45,7 @@ function enumerateDates(start: string, end: string): string[] {
   const cur = new Date(sy, sm - 1, sd);
   const last = new Date(ey, em - 1, ed);
   while (cur <= last) {
-    dates.push(cur.toISOString().slice(0, 10));
+    dates.push(toLocalISODate(cur)); // <-- thay dòng cũ bằng dòng này
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -65,7 +72,7 @@ export async function getScheduleStatistics(params: {
   endDate: string;
 }) {
   await requireViewAction("statistics");
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const { data: sessions, error: sessionsError } = await supabase
     .from("sessions")

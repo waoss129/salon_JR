@@ -3,9 +3,8 @@ export function getBusinessHoursForDate(
 ): { start: number; end: number } | null {
   const [y, m, d] = date.split("-").map(Number);
   const dow = new Date(y, m - 1, d).getDay();
-  if (dow === 0) return null; // Chủ nhật nghỉ
-  if (dow === 6) return { start: 9, end: 18 }; // Thứ 7: 9h-18h
-  return { start: 8, end: 17 }; // Thứ 2 - Thứ 6: 8h-17h
+  if (dow === 0 || dow === 6) return { start: 9, end: 17 }; // Thứ 7, Chủ nhật: 9h-17h
+  return { start: 9, end: 21 }; // Thứ 2 - Thứ 6: 9h-21h
 }
 
 /**

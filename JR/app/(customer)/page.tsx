@@ -5,6 +5,35 @@ import { useRouter } from "next/navigation";
 import { GRID_DISPLAY_CONFIG } from "@/components/home/constants";
 import ServiceCard from "@/components/home/ServiceCard";
 
+// Lấy 1 ảnh tĩnh đầu tiên từ folder (hair/nail/spa) để làm ảnh minh hoạ cho
+// card "Dịch vụ cốt lõi" bên dưới — khác với ServiceCard phía trên (ảnh chạy
+// vòng lặp đổi liên tục), ở đây chỉ cần 1 ảnh cố định ghép cùng mô tả text.
+function CoreServiceImage({ folder }: { folder: string }) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/get-images?folder=${folder}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.images && data.images.length > 0) setImageUrl(data.images[0]);
+      })
+      .catch((err) => console.error("Lỗi nạp ảnh:", err));
+  }, [folder]);
+
+  if (!imageUrl) {
+    return (
+      <div className="aspect-[4/3] w-full rounded-2xl bg-stone-100 animate-pulse" />
+    );
+  }
+
+  return (
+    <div
+      className="aspect-[4/3] w-full rounded-2xl bg-cover bg-center"
+      style={{ backgroundImage: `url('${imageUrl}')` }}
+    />
+  );
+}
+
 export default function JoyRideHomePage() {
   const supabase = createClient();
   const [session, setSession] = useState<any>(null); //state de luu session
@@ -145,7 +174,7 @@ export default function JoyRideHomePage() {
               onClick={() => handleServiceSelect("hair")}
               className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-[#CFECF3]/20 hover:border-pink-300 transition-all cursor-pointer hover:shadow-md"
             >
-              <div className="text-3xl"></div>
+              <CoreServiceImage folder="hair" />
               <h4 className="text-lg font-bold text-stone-900 mt-4">
                 Thiết Kế Tóc Thời Thượng
               </h4>
@@ -157,7 +186,7 @@ export default function JoyRideHomePage() {
               onClick={() => handleServiceSelect("nail")}
               className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-[#CFECF3]/20 hover:border-pink-300 transition-all cursor-pointer hover:shadow-md"
             >
-              <div className="text-3xl"></div>
+              <CoreServiceImage folder="nail" />
               <h4 className="text-lg font-bold text-stone-900 mt-4">
                 Nail Art Nghệ Thuật
               </h4>
@@ -169,7 +198,7 @@ export default function JoyRideHomePage() {
               onClick={() => handleServiceSelect("spa")}
               className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm border border-[#CFECF3]/20 hover:border-pink-300 transition-all cursor-pointer hover:shadow-md"
             >
-              <div className="text-3xl"></div>
+              <CoreServiceImage folder="spa" />
               <h4 className="text-lg font-bold text-stone-900 mt-4">
                 Spa & Trị Liệu Da Mặt
               </h4>

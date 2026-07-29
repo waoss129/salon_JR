@@ -17,6 +17,34 @@ type StatsData = {
   daysOff: DaysOffRow[];
 };
 
+type SectionKey = "gaps" | "workload" | "absence" | "daysOff";
+
+function SectionHeader({
+  title,
+  isOpen,
+  onToggle,
+}: {
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-2 font-semibold mb-2 print:hidden w-full text-left"
+    >
+      <span
+        className="inline-block transition-transform duration-150"
+        style={{ transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
+      >
+        ▼
+      </span>
+      {title}
+    </button>
+  );
+}
+
 export function ScheduleStatsManager({
   initialData,
   initialStartDate,
@@ -31,6 +59,20 @@ export function ScheduleStatsManager({
   const [endDate, setEndDate] = useState(initialEndDate);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
+
+  // Mặc định mở hết; bấm vào tiêu đề để thu gọn/mở lại từng mục
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
+    {
+      gaps: true,
+      workload: true,
+      absence: true,
+      daysOff: true,
+    },
+  );
+
+  function toggleSection(key: SectionKey) {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
 
   function refresh(nextStart: string, nextEnd: string) {
     setError("");
@@ -86,7 +128,6 @@ export function ScheduleStatsManager({
         <PrintButton className="ml-auto" />
       </div>
 
-      {/* Chỉ hiện khi in, để biết đang xem đúng khoảng ngày nào trên giấy */}
       <p className="hidden print:block text-sm text-gray-500 -mt-4">
         Khoảng ngày: {startDate} — {endDate}
       </p>
@@ -95,137 +136,157 @@ export function ScheduleStatsManager({
 
       {/* 1. Ca trống */}
       <section>
-        <h2 className="font-semibold mb-2">
-          Ca trống người ({data.gaps.length})
-        </h2>
-        <table className="w-full text-sm border rounded overflow-hidden">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left p-2">Ngày</th>
-              <th className="text-left p-2">Ca</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.gaps.length === 0 && (
+        <SectionHeader
+          title={`Ca trống người (${data.gaps.length})`}
+          isOpen={openSections.gaps}
+          onToggle={() => toggleSection("gaps")}
+        />
+        <div className={openSections.gaps ? "" : "hidden print:block"}>
+          <table className="w-full text-sm border rounded overflow-hidden">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan={2} className="p-3 text-center text-gray-400">
-                  Không có ca nào bị trống trong khoảng đã chọn
-                </td>
+                <th className="text-left p-2">Ngày</th>
+                <th className="text-left p-2">Ca</th>
               </tr>
-            )}
-            {data.gaps.map((g, i) => (
-              <tr key={i} className="border-t">
-                <td className="p-2">{g.date}</td>
-                <td className="p-2">{g.sessionName}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.gaps.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="p-3 text-center text-gray-400">
+                    Không có ca nào bị trống trong khoảng đã chọn
+                  </td>
+                </tr>
+              )}
+              {data.gaps.map((g, i) => (
+                <tr key={i} className="border-t">
+                  <td className="p-2">{g.date}</td>
+                  <td className="p-2">{g.sessionName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* 2. Khối lượng ca theo nhân viên */}
       <section>
-        <h2 className="font-semibold mb-2">Khối lượng ca theo nhân viên</h2>
-        <table className="w-full text-sm border rounded overflow-hidden">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left p-2">Nhân viên</th>
-              <th className="text-left p-2">Số ca được xếp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.workload.length === 0 && (
+        <SectionHeader
+          title="Khối lượng ca theo nhân viên"
+          isOpen={openSections.workload}
+          onToggle={() => toggleSection("workload")}
+        />
+        <div className={openSections.workload ? "" : "hidden print:block"}>
+          <table className="w-full text-sm border rounded overflow-hidden">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan={2} className="p-3 text-center text-gray-400">
-                  Chưa có ca nào trong khoảng đã chọn
-                </td>
+                <th className="text-left p-2">Nhân viên</th>
+                <th className="text-left p-2">Số ca được xếp</th>
               </tr>
-            )}
-            {data.workload.map((w) => (
-              <tr key={w.employeeId} className="border-t">
-                <td className="p-2">{w.fullname}</td>
-                <td className="p-2">{w.shiftCount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.workload.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="p-3 text-center text-gray-400">
+                    Chưa có ca nào trong khoảng đã chọn
+                  </td>
+                </tr>
+              )}
+              {data.workload.map((w) => (
+                <tr key={w.employeeId} className="border-t">
+                  <td className="p-2">{w.fullname}</td>
+                  <td className="p-2">{w.shiftCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* 3. Tỷ lệ vắng mặt */}
       <section>
-        <h2 className="font-semibold mb-2">Tỷ lệ vắng mặt theo nhân viên</h2>
-        <table className="w-full text-sm border rounded overflow-hidden">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left p-2">Nhân viên</th>
-              <th className="text-left p-2">Vắng / Tổng ca</th>
-              <th className="text-left p-2">Tỷ lệ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.absence.length === 0 && (
+        <SectionHeader
+          title="Tỷ lệ vắng mặt theo nhân viên"
+          isOpen={openSections.absence}
+          onToggle={() => toggleSection("absence")}
+        />
+        <div className={openSections.absence ? "" : "hidden print:block"}>
+          <table className="w-full text-sm border rounded overflow-hidden">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan={3} className="p-3 text-center text-gray-400">
-                  Chưa có dữ liệu trong khoảng đã chọn
-                </td>
+                <th className="text-left p-2">Nhân viên</th>
+                <th className="text-left p-2">Vắng / Tổng ca</th>
+                <th className="text-left p-2">Tỷ lệ</th>
               </tr>
-            )}
-            {data.absence.map((a) => (
-              <tr key={a.employeeId} className="border-t">
-                <td className="p-2">{a.fullname}</td>
-                <td className="p-2">
-                  {a.absentCount} / {a.totalCount}
-                </td>
-                <td className="p-2">
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      a.rate >= 20
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {a.rate}%
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.absence.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="p-3 text-center text-gray-400">
+                    Chưa có dữ liệu trong khoảng đã chọn
+                  </td>
+                </tr>
+              )}
+              {data.absence.map((a) => (
+                <tr key={a.employeeId} className="border-t">
+                  <td className="p-2">{a.fullname}</td>
+                  <td className="p-2">
+                    {a.absentCount} / {a.totalCount}
+                  </td>
+                  <td className="p-2">
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        a.rate >= 20
+                          ? "bg-red-100 text-red-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {a.rate}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
-      {/* 4. Số ngày nghỉ (tham khảo — số tiền bị trừ thật xem ở trang Lương) */}
+      {/* 4. Số ngày nghỉ */}
       <section>
-        <h2 className="font-semibold mb-2">
-          Số ngày nghỉ theo nhân viên (trong khoảng đã chọn)
-        </h2>
-        <p className="text-xs text-gray-400 mb-2">
-          Gồm cả ngày chưa xếp lịch lẫn ngày có xếp nhưng không hoàn thành ca.
-          Hạn mức 4 ngày/tháng và số tiền bị trừ (nếu có) xem chi tiết ở trang
-          Thống kê lương.
-        </p>
-        <table className="w-full text-sm border rounded overflow-hidden">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left p-2">Nhân viên</th>
-              <th className="text-left p-2">Số ngày nghỉ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.daysOff.length === 0 && (
+        <SectionHeader
+          title="Số ngày nghỉ theo nhân viên (trong khoảng đã chọn)"
+          isOpen={openSections.daysOff}
+          onToggle={() => toggleSection("daysOff")}
+        />
+        <div className={openSections.daysOff ? "" : "hidden print:block"}>
+          <p className="text-xs text-gray-400 mb-2">
+            Gồm cả ngày chưa xếp lịch lẫn ngày có xếp nhưng không hoàn thành ca.
+            Hạn mức 4 ngày/tháng và số tiền bị trừ (nếu có) xem chi tiết ở trang
+            Thống kê lương.
+          </p>
+          <table className="w-full text-sm border rounded overflow-hidden">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan={2} className="p-3 text-center text-gray-400">
-                  Chưa có dữ liệu trong khoảng đã chọn
-                </td>
+                <th className="text-left p-2">Nhân viên</th>
+                <th className="text-left p-2">Số ngày nghỉ</th>
               </tr>
-            )}
-            {data.daysOff.map((d) => (
-              <tr key={d.employeeId} className="border-t">
-                <td className="p-2">{d.fullname}</td>
-                <td className="p-2">{d.daysOff}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.daysOff.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="p-3 text-center text-gray-400">
+                    Chưa có dữ liệu trong khoảng đã chọn
+                  </td>
+                </tr>
+              )}
+              {data.daysOff.map((d) => (
+                <tr key={d.employeeId} className="border-t">
+                  <td className="p-2">{d.fullname}</td>
+                  <td className="p-2">{d.daysOff}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

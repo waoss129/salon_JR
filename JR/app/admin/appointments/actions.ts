@@ -163,8 +163,24 @@ export async function getAvailableEmployeesForAppointment(
   if (apptErr || !appointment) throw new Error("Không tìm thấy lịch hẹn");
 
   const apptStart = new Date(appointment.appointment_date);
-  const scheduleDate = appointment.appointment_date.split("T")[0];
-  const timeWithSeconds = apptStart.toTimeString().slice(0, 8);
+
+  // Lấy ngày & giờ theo giờ Việt Nam — KHÔNG dùng .toTimeString()/.split("T")[0]
+  // trực tiếp vì appointment_date là timestamptz: nếu server chạy ở timezone
+  // khác VN (vd UTC trên Vercel), 2 cách trên sẽ trả về sai giờ/sai ngày.
+  const vnParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(apptStart);
+  const vn = (type: string) =>
+    vnParts.find((p) => p.type === type)?.value ?? "";
+  const scheduleDate = `${vn("year")}-${vn("month")}-${vn("day")}`;
+  const timeWithSeconds = `${vn("hour")}:${vn("minute")}:${vn("second")}`;
 
   const DEFAULT_DURATION_MIN = 60;
   const totalDurationMin = ((appointment as any).details ?? []).reduce(

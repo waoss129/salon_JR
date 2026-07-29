@@ -517,7 +517,7 @@ export default function AdminLayout({
                           <button
                             key={item.id}
                             onClick={() => {
-                              setShowNotifications(false);
+                              setShowNotifications(false); //
                               router.push("/admin/schedule-proposal/review");
                             }}
                             className="w-full text-left p-3 border-b last:border-b-0 hover:bg-slate-50 text-sm"
