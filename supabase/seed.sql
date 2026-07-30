@@ -4,7 +4,7 @@ SET session_replication_role = replica;
 -- PostgreSQL database dump
 --
 
--- \restrict bU4LLIOl7LFhO29lM65XXSsbrLVfOg2fMiPCkqAahoDfEB1ohOwQcfhJJIZUJ26
+-- \restrict 7WYI3IRJOnANFiqCkpOXVUEcQlbaxaj8RtElMo9Pm5MF6i73f0myXLvNUo3ubN0
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -121,7 +121,8 @@ INSERT INTO "auth"."audit_log_entries" ("instance_id", "id", "payload", "created
 	('00000000-0000-0000-0000-000000000000', '53829bc1-886a-4cef-9fca-48802f7babdc', '{"action":"login","actor_id":"00000000-0000-0000-0000-000000000001","actor_username":"admin@joyride.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-12 09:45:13.95238+00', ''),
 	('00000000-0000-0000-0000-000000000000', '78bc68f4-ae86-4b50-8586-398f868d7717', '{"action":"logout","actor_id":"00000000-0000-0000-0000-000000000001","actor_username":"admin@joyride.com","actor_via_sso":false,"log_type":"account"}', '2026-07-12 09:45:17.799299+00', ''),
 	('00000000-0000-0000-0000-000000000000', 'fb7d4fb0-7ef0-400b-91d5-573d67fcbda6', '{"action":"login","actor_id":"00000000-0000-0000-0000-000000000002","actor_username":"hoangbaongan951@gmail.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-12 09:45:25.446379+00', ''),
-	('00000000-0000-0000-0000-000000000000', '032bf822-3d86-4f72-be8a-7390fe96ffc5', '{"action":"logout","actor_id":"00000000-0000-0000-0000-000000000002","actor_username":"hoangbaongan951@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-12 09:45:33.254351+00', '');
+	('00000000-0000-0000-0000-000000000000', '032bf822-3d86-4f72-be8a-7390fe96ffc5', '{"action":"logout","actor_id":"00000000-0000-0000-0000-000000000002","actor_username":"hoangbaongan951@gmail.com","actor_via_sso":false,"log_type":"account"}', '2026-07-12 09:45:33.254351+00', ''),
+	('00000000-0000-0000-0000-000000000000', '6310d3c2-6899-494c-bd59-189c7087a5f0', '{"action":"login","actor_id":"00000000-0000-0000-0000-000000000001","actor_username":"admin@joyride.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2026-07-30 15:26:27.826962+00', '');
 
 
 --
@@ -141,8 +142,8 @@ INSERT INTO "auth"."audit_log_entries" ("instance_id", "id", "payload", "created
 --
 
 INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new", "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data", "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change", "phone_change_token", "phone_change_sent_at", "email_change_token_current", "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at", "is_sso_user", "deleted_at", "is_anonymous") VALUES
-	('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'admin@joyride.com', '$2a$06$3CfSvn4VFU9P0AIIJSQMHOrKkhjBm7l.NoH56/sdVgaM96Nv2FEfG', '2026-07-12 06:20:22.841704+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-12 09:45:13.95475+00', '{"provider": "email", "providers": ["email"]}', '{"fullname": "Quản trị viên", "is_staff": true}', NULL, '2026-07-12 09:44:28.626103+00', '2026-07-12 09:45:13.961864+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
-	('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'hoangbaongan951@gmail.com', '$2a$06$4ncuIe/BRVllvajk6/pSvuixnUyA6ax1lFSbQkb57G3bSBv4yqo5O', '2026-07-12 06:27:32.780422+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-12 09:45:25.448062+00', '{"provider": "email", "providers": ["email"]}', '{"fullname": "Hoang Bao Ngan", "is_staff": true}', NULL, '2026-07-12 09:44:28.626103+00', '2026-07-12 09:45:25.453315+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false);
+	('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'hoangbaongan951@gmail.com', '$2a$06$4ncuIe/BRVllvajk6/pSvuixnUyA6ax1lFSbQkb57G3bSBv4yqo5O', '2026-07-12 06:27:32.780422+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-12 09:45:25.448062+00', '{"provider": "email", "providers": ["email"]}', '{"fullname": "Hoang Bao Ngan", "is_staff": true}', NULL, '2026-07-12 09:44:28.626103+00', '2026-07-12 09:45:25.453315+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false),
+	('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'admin@joyride.com', '$2a$06$3CfSvn4VFU9P0AIIJSQMHOrKkhjBm7l.NoH56/sdVgaM96Nv2FEfG', '2026-07-12 06:20:22.841704+00', NULL, '', NULL, '', NULL, '', '', NULL, '2026-07-30 15:26:27.83915+00', '{"provider": "email", "providers": ["email"]}', '{"fullname": "Quản trị viên", "is_staff": true}', NULL, '2026-07-12 09:44:28.626103+00', '2026-07-30 15:26:27.85655+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false);
 
 
 --
@@ -170,12 +171,16 @@ INSERT INTO "auth"."identities" ("provider_id", "user_id", "identity_data", "pro
 -- Data for Name: sessions; Type: TABLE DATA; Schema: auth; Owner: supabase_auth_admin
 --
 
+INSERT INTO "auth"."sessions" ("id", "user_id", "created_at", "updated_at", "factor_id", "aal", "not_after", "refreshed_at", "user_agent", "ip", "tag", "oauth_client_id", "refresh_token_hmac_key", "refresh_token_counter", "scopes") VALUES
+	('fe4be15b-ff42-47f3-8785-3e4e6f9c478f', '00000000-0000-0000-0000-000000000001', '2026-07-30 15:26:27.83992+00', '2026-07-30 15:26:27.83992+00', NULL, 'aal1', NULL, NULL, 'node', '172.18.0.1', NULL, NULL, NULL, NULL, NULL);
 
 
 --
 -- Data for Name: mfa_amr_claims; Type: TABLE DATA; Schema: auth; Owner: supabase_auth_admin
 --
 
+INSERT INTO "auth"."mfa_amr_claims" ("session_id", "created_at", "updated_at", "authentication_method", "id") VALUES
+	('fe4be15b-ff42-47f3-8785-3e4e6f9c478f', '2026-07-30 15:26:27.860529+00', '2026-07-30 15:26:27.860529+00', 'password', '4cb06428-9d3d-48f0-99cb-ed0aa8abd7f0');
 
 
 --
@@ -218,6 +223,8 @@ INSERT INTO "auth"."identities" ("provider_id", "user_id", "identity_data", "pro
 -- Data for Name: refresh_tokens; Type: TABLE DATA; Schema: auth; Owner: supabase_auth_admin
 --
 
+INSERT INTO "auth"."refresh_tokens" ("instance_id", "id", "token", "user_id", "revoked", "created_at", "updated_at", "parent", "session_id") VALUES
+	('00000000-0000-0000-0000-000000000000', 21, 'f7kkch66xt6d', '00000000-0000-0000-0000-000000000001', false, '2026-07-30 15:26:27.851234+00', '2026-07-30 15:26:27.851234+00', NULL, 'fe4be15b-ff42-47f3-8785-3e4e6f9c478f');
 
 
 --
@@ -260,9 +267,9 @@ INSERT INTO "auth"."identities" ("provider_id", "user_id", "identity_data", "pro
 -- Data for Name: profiles; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-INSERT INTO "public"."profiles" ("id", "created_at", "avatar", "gender", "dob", "phone", "address", "email", "updated_at", "fullname") VALUES
-	('00000000-0000-0000-0000-000000000002', '2026-07-12 06:27:32.780422+00', NULL, NULL, NULL, NULL, NULL, 'hoangbaongan951@gmail.com', '2026-07-12 06:27:32.780422+00', 'Hoang Bao Ngan'),
-	('00000000-0000-0000-0000-000000000001', '2026-07-12 06:28:16.987138+00', NULL, NULL, NULL, NULL, NULL, 'admin@joyride.com', '2026-07-12 06:28:16.987138+00', 'Quản trị viên');
+INSERT INTO "public"."profiles" ("id", "created_at", "avatar", "gender", "dob", "phone", "address", "email", "updated_at", "fullname", "email_locked") VALUES
+	('00000000-0000-0000-0000-000000000002', '2026-07-12 06:27:32.780422+00', NULL, NULL, NULL, NULL, NULL, 'hoangbaongan951@gmail.com', '2026-07-12 06:27:32.780422+00', 'Hoang Bao Ngan', false),
+	('00000000-0000-0000-0000-000000000001', '2026-07-12 06:28:16.987138+00', NULL, NULL, NULL, NULL, NULL, 'admin@joyride.com', '2026-07-12 06:28:16.987138+00', 'Quản trị viên', false);
 
 
 --
@@ -297,10 +304,18 @@ INSERT INTO "public"."employees" ("id", "created_at", "role_id", "updated_at", "
 --
 
 INSERT INTO "public"."sessions" ("id", "created_at", "name", "start_time", "end_time", "updated_at") OVERRIDING SYSTEM VALUE VALUES
-	(1, '2026-07-05 03:45:41.329608+00', 'SA T2-T6', '08:00:00', '15:00:00', '2026-07-05 03:45:41.329608+00'),
-	(2, '2026-07-05 03:46:10.953877+00', 'CH T2-T6', '10:00:00', '17:00:00', '2026-07-05 03:46:10.953877+00'),
-	(3, '2026-07-05 03:46:36.105021+00', 'SA T7', '09:00:00', '16:00:00', '2026-07-05 03:46:36.105021+00'),
-	(4, '2026-07-05 03:46:56.935026+00', 'CH T7', '11:00:00', '18:00:00', '2026-07-05 03:46:56.935026+00');
+	(1, '2026-07-05 03:45:41.329608+00', 'SA T2', '09:00:00', '17:00:00', '2026-07-05 03:45:41.329608+00'),
+	(2, '2026-07-05 03:46:10.953877+00', 'CH T2', '13:00:00', '21:00:00', '2026-07-05 03:46:10.953877+00'),
+	(3, '2026-07-05 03:46:36.105021+00', 'SA T3', '09:00:00', '17:00:00', '2026-07-05 03:46:36.105021+00'),
+	(4, '2026-07-05 03:46:56.935026+00', 'CH T3', '13:00:00', '21:00:00', '2026-07-05 03:46:56.935026+00'),
+	(5, '2026-07-30 15:38:28.451453+00', 'SA T4', '09:00:00', '17:00:00', '2026-07-30 15:38:28.451453+00'),
+	(6, '2026-07-30 15:42:04.492188+00', 'CH T4', '13:00:00', '21:00:00', '2026-07-30 15:42:04.492188+00'),
+	(7, '2026-07-30 15:42:51.167476+00', 'SA T5', '09:00:00', '17:00:00', '2026-07-30 15:42:51.167476+00'),
+	(8, '2026-07-30 15:43:20.436118+00', 'CH T5', '13:00:00', '21:00:00', '2026-07-30 15:43:20.436118+00'),
+	(9, '2026-07-30 15:44:03.450181+00', 'SA T6', '09:00:00', '17:00:00', '2026-07-30 15:44:03.450181+00'),
+	(10, '2026-07-30 15:44:35.5302+00', 'CH T6', '13:00:00', '21:00:00', '2026-07-30 15:44:35.5302+00'),
+	(11, '2026-07-30 15:45:41.531656+00', 'SA T7', '09:00:00', '17:00:00', '2026-07-30 15:45:41.531656+00'),
+	(12, '2026-07-30 15:46:11.644433+00', 'SA CN', '09:00:00', '17:00:00', '2026-07-30 15:46:11.644433+00');
 
 
 --
@@ -319,6 +334,9 @@ INSERT INTO "public"."sessions" ("id", "created_at", "name", "start_time", "end_
 -- Data for Name: promotions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
+INSERT INTO "public"."promotions" ("id", "name", "code", "discount_type", "discount_value", "min_order_value", "is_first_time", "day_of_week", "start_date", "end_date", "created_at", "updated_at", "is_active") VALUES
+	('ce92c3d5-6129-4a06-bb3d-4ba0c388c54a', 'KHÁCH HÀNG ĐẦU TIÊN', '01FIRST_JR', 'percentage', 10, NULL, true, NULL, '2025-08-18 00:00:00', '2030-12-31 00:00:00', '2026-07-30 15:52:57.935482+00', '2026-07-30 15:52:57.935482+00', true),
+	('91a15445-7507-4c99-8372-305198a54104', 'THỨ 2 HÀNG TUẦN', 'WELCOME JR-MON', 'percentage', 30, NULL, false, 1, '2026-01-01 00:00:00', '2030-12-31 00:00:00', '2026-07-30 15:54:49.145515+00', '2026-07-30 15:54:49.145515+00', true);
 
 
 --
@@ -351,11 +369,7 @@ INSERT INTO "public"."services" ("id", "created_at", "name", "category_id", "des
 	(17, '2026-07-02 15:44:52.941171+00', 'SUNFLOWER', 2, 'kiên định, chân thành', 295000, NULL, NULL, '2026-07-02 15:44:52.941171+00'),
 	(18, '2026-07-02 15:45:22.735666+00', 'JASMINE', 3, 'tươi trẻ, làm sạch', 645000, NULL, NULL, '2026-07-02 15:45:22.735666+00'),
 	(19, '2026-07-02 15:45:51.480971+00', 'LOTUS', 3, 'premium, tận hưởng', 1245000, NULL, NULL, '2026-07-02 15:45:51.480971+00'),
-	(20, '2026-07-02 15:46:21.561279+00', 'DAISY', 3, 'thư giãn, chữa lành', 745000, NULL, NULL, '2026-07-02 15:46:21.561279+00'),
-	(23, '2026-07-03 16:01:27.461107+00', 'HIHI', 2, NULL, 540000, NULL, NULL, '2026-07-03 16:01:27.461107+00'),
-	(21, '2026-07-03 16:00:27.750685+00', 'LALA', 1, NULL, 132000, NULL, NULL, '2026-07-03 16:00:27.750685+00'),
-	(22, '2026-07-03 16:00:55.973515+00', 'SUSU', 3, NULL, 200000, NULL, NULL, '2026-07-03 16:00:55.973515+00'),
-	(25, '2026-07-03 16:06:22.030105+00', 'MOMO', 1, NULL, 900000, NULL, NULL, '2026-07-03 16:06:22.030105+00');
+	(20, '2026-07-02 15:46:21.561279+00', 'DAISY', 3, 'thư giãn, chữa lành', 745000, NULL, NULL, '2026-07-02 15:46:21.561279+00');
 
 
 --
@@ -371,6 +385,12 @@ INSERT INTO "public"."services" ("id", "created_at", "name", "category_id", "des
 
 
 --
+-- Data for Name: employee_activation_tokens; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
 -- Data for Name: employee_categories; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -378,6 +398,24 @@ INSERT INTO "public"."services" ("id", "created_at", "name", "category_id", "des
 
 --
 -- Data for Name: promotion_services; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- Data for Name: salary_history; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- Data for Name: schedule_proposal_batches; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- Data for Name: schedule_proposal_items; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 
@@ -452,7 +490,7 @@ INSERT INTO "storage"."objects" ("id", "bucket_id", "name", "owner", "created_at
 -- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: supabase_auth_admin
 --
 
-SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 20, true);
+SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 21, true);
 
 
 --
@@ -480,7 +518,7 @@ SELECT pg_catalog.setval('"public"."services_id_seq"', 25, true);
 -- Name: sessions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('"public"."sessions_id_seq"', 4, true);
+SELECT pg_catalog.setval('"public"."sessions_id_seq"', 12, true);
 
 
 --
@@ -494,6 +532,6 @@ SELECT pg_catalog.setval('"supabase_functions"."hooks_id_seq"', 1, false);
 -- PostgreSQL database dump complete
 --
 
--- \unrestrict bU4LLIOl7LFhO29lM65XXSsbrLVfOg2fMiPCkqAahoDfEB1ohOwQcfhJJIZUJ26
+-- \unrestrict 7WYI3IRJOnANFiqCkpOXVUEcQlbaxaj8RtElMo9Pm5MF6i73f0myXLvNUo3ubN0
 
 RESET ALL;
