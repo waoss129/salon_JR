@@ -1,7 +1,7 @@
 "use server";
 
 import crypto from "crypto";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient, createAdminAuthClient } from "@/lib/supabase/server";
 import { requireManage } from "@/lib/supabase/admin-guard";
 import { revalidatePath } from "next/cache";
 
@@ -48,7 +48,7 @@ export async function addStaff(
   }
 
   const adminClient = createAdminClient();
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const { data: authData, error: authError } =
     await adminClient.auth.admin.createUser({
@@ -145,7 +145,7 @@ export async function updateStaffStatus(
     throw new Error("Trạng thái không hợp lệ");
   }
 
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
   const { error } = await supabase
     .from("employees")
     .update({ status })
@@ -172,7 +172,7 @@ export async function updateStaff(
 ): Promise<void> {
   await requireManage("staff");
 
-  const supabase = await createClient();
+  const supabase = await createAdminAuthClient();
 
   const fullname = (formData.get("fullname") as string | null)?.trim();
   if (!fullname) {
