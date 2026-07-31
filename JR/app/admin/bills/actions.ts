@@ -77,6 +77,7 @@ export type BillDetail = {
       } | null;
     } | null;
   } | null;
+  promotions: { code: string; name: string } | null;
   lines: {
     id: string;
     quantity: number;
@@ -363,7 +364,8 @@ export async function getBillDetail(
           id,
           profiles ( fullname, phone, dob, gender )
         )
-      )
+      ),
+      promotions ( code, name )
     `,
     )
     .eq("id", billId)

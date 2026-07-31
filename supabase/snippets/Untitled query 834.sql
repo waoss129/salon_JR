@@ -1,4 +1,1 @@
-create policy "Cho phép xem promotions đang active"
-on promotions for select
-to authenticated, anon
-using (is_active = true);
+select count(*) from appointments where customer_id = '64ce68be-87a6-4ed0-a423-d2ceb9970d17';
