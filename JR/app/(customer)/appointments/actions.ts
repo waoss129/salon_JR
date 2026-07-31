@@ -42,11 +42,19 @@ async function expireLateAppointments(customerId: string) {
     Date.now() - NO_SHOW_GRACE_MINUTES * 60 * 1000,
   ).toISOString();
 
+  // Tách riêng 2 trường hợp thay vì gộp chung thành no_show
+  await supabase
+    .from("appointments")
+    .update({ status: "cancelled" })
+    .eq("customer_id", customerId)
+    .eq("status", "pending")          // pending quá giờ -> huỷ (admin chưa kịp duyệt)
+    .lt("appointment_date", cutoff);
+
   await supabase
     .from("appointments")
     .update({ status: "no_show" })
     .eq("customer_id", customerId)
-    .in("status", ["pending", "confirmed"])
+    .eq("status", "confirmed")        // confirmed quá giờ -> mới tính "không đến"
     .lt("appointment_date", cutoff);
 }
 

@@ -66,6 +66,14 @@ export async function createAppointment(params: {
     throw new Error("Khung giờ không hợp lệ");
   }
 
+  // Chặn đặt lịch cho thời điểm đã qua hoặc quá sát giờ hiện tại
+  const MIN_LEAD_MINUTES = 30;
+  const appointmentDateTime = new Date(`${params.date}T${params.time}:00`);
+  if (appointmentDateTime.getTime() < Date.now() + MIN_LEAD_MINUTES * 60 * 1000) {
+    throw new Error(
+      `Vui lòng chọn thời gian cách hiện tại ít nhất ${MIN_LEAD_MINUTES} phút`,
+    );
+  }
   const { data: service, error: serviceErr } = await supabase
     .from("services")
     .select("id, price")

@@ -54,7 +54,7 @@ export function AddScheduleForm({
 
   function toggleSession(id: number) {
     setSelectedSessions((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+      prev.includes(id) ? [] : [id], //prev.filter((s) => s !== id) : [...prev, id],
     );
   }
 
@@ -110,7 +110,8 @@ export function AddScheduleForm({
           {group.map((session) => (
             <label key={session.id} className="flex items-center gap-2 text-sm">
               <input
-                type="checkbox"
+                type="radio"
+                name="session-choice"
                 checked={selectedSessions.includes(session.id)}
                 onChange={() => toggleSession(session.id)}
               />
