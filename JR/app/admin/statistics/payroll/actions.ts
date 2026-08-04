@@ -68,7 +68,7 @@ export async function getPayrollStatistics(params: {
   year: number;
   month: number; // 1-12
 }): Promise<PayrollRow[]> {
-  await requireViewAction("statistics");
+  await requireViewAction("payroll");
   const supabase = await createAdminAuthClient();
 
   const startDate = `${params.year}-${String(params.month).padStart(2, "0")}-01`;

@@ -3,7 +3,7 @@ import { getPayrollStatistics } from "./actions";
 import { PayrollManager } from "@/components/admin/PayrollManager";
 
 export default async function PayrollStatisticsPage() {
-  await requireView("statistics");
+  await requireView("payroll");
 
   const now = new Date();
   const year = now.getFullYear();
