@@ -1,4 +1,3 @@
-// app/admin/statistics/revenue/page.tsx
 import { requireView } from "@/lib/supabase/admin-guard";
 import StatisticsFilters from "@/components/admin/StatisticsFilters";
 import { PrintButton } from "@/components/admin/PrintButton";

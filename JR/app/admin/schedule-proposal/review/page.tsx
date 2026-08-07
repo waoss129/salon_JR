@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
 import { getProposalsForNextWeek } from "@/app/admin/schedules/proposals/actions";
 import ScheduleProposalReview from "@/components/admin/ScheduleProposalReview";
 
 export default async function ScheduleProposalReviewPage() {
+  redirect("/admin/schedules"); // TẮT TẠM — chuyển sang mô hình đăng ký mới
   const batches = await getProposalsForNextWeek();
 
   return (

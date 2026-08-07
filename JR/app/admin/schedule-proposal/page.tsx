@@ -1,8 +1,10 @@
+import { redirect } from "next/navigation";
 import { getMyPendingProposal } from "@/app/admin/schedules/proposals/actions";
 import { getSessions } from "@/app/admin/schedules/actions";
 import MyProposalForm from "@/components/admin/MyProposalForm";
 
 export default async function MyScheduleProposalPage() {
+  redirect("/employee/schedule"); //tắt tạm - chuyển sang mô hình đăng ký mới
   const proposal = await getMyPendingProposal();
   const sessions = await getSessions();
 

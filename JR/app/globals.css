@@ -45,3 +45,18 @@ body {
 .animate-color-cycle {
   animation: color-cycle 6s infinite ease-in-out;
 }
+
+/* 6. In chỉ đúng 1 card (ChartCard) — ẩn mọi card khác qua class này,
+   JS trong ChartCard.tsx tự thêm/gỡ class lúc bấm nút "In". */
+.hidden-for-print {
+  display: none !important;
+}
+
+/* 7. Ẩn khung sidebar + header khi in, chỉ giữ nội dung <main> — áp dụng
+   chung cho MỌI trang admin (không riêng Thống Kê). */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+}

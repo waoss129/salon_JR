@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function StatisticsFilters({
@@ -11,6 +11,7 @@ export default function StatisticsFilters({
   defaultTo: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [from, setFrom] = useState(searchParams.get("from") ?? defaultFrom);
@@ -20,7 +21,9 @@ export default function StatisticsFilters({
     const params = new URLSearchParams();
     params.set("from", from);
     params.set("to", to);
-    router.push(`/admin/statistics?${params.toString()}`);
+    // Dùng pathname thật của trang đang đứng, không viết cứng "/admin/statistics"
+    // (route đó thậm chí không tồn tại — trang thật là /admin/statistics/revenue)
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   return (

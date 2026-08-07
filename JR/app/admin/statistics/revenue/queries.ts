@@ -27,10 +27,6 @@ function toRangeIso(from: string, to: string) {
   };
 }
 
-// ============================================================
-// 4 Ô TỔNG QUAN
-// ============================================================
-
 export async function getStatisticsSummary(
   from: string,
   to: string,
@@ -38,8 +34,6 @@ export async function getStatisticsSummary(
   const supabase = await createAdminAuthClient();
   const { start, end } = toRangeIso(from, to);
 
-  // Doanh thu: chỉ tính bills đã 'paid', mốc ngày = updated_at
-  // (xấp xỉ ngày thanh toán — quy ước dùng chung với trang hóa đơn/dashboard).
   const { data: paidBills } = await supabase
     .from("bills")
     .select("total_price")
@@ -53,14 +47,12 @@ export async function getStatisticsSummary(
   );
   const paidCount = (paidBills ?? []).length;
 
-  // Số hóa đơn đã tạo trong khoảng (không lọc trạng thái).
   const { count: totalBillsCreated } = await supabase
     .from("bills")
     .select("id", { count: "exact", head: true })
     .gte("created_at", start)
     .lte("created_at", end);
 
-  // Số lịch hẹn hoàn thành trong khoảng.
   const { count: completedAppointments } = await supabase
     .from("appointments")
     .select("id", { count: "exact", head: true })
@@ -71,15 +63,10 @@ export async function getStatisticsSummary(
   return {
     totalRevenue,
     totalBillsCreated: totalBillsCreated ?? 0,
-    // Giá trị TB tính trên hóa đơn ĐÃ THANH TOÁN (khớp với "Tổng doanh thu" ở trên).
     avgPerPaidBill: paidCount > 0 ? Math.round(totalRevenue / paidCount) : 0,
     completedAppointments: completedAppointments ?? 0,
   };
 }
-
-// ============================================================
-// TOP 5 DỊCH VỤ BÁN CHẠY
-// ============================================================
 
 export async function getTopServices(
   from: string,
@@ -89,9 +76,6 @@ export async function getTopServices(
   const supabase = await createAdminAuthClient();
   const { start, end } = toRangeIso(from, to);
 
-  // Chỉ tính trên các dòng dịch vụ thuộc bill đã 'paid' trong khoảng thời gian,
-  // để khớp với "Tổng doanh thu" ở phần tổng quan. Lấy kèm tên category qua
-  // services -> categories để hiển thị loại dịch vụ trong bảng Top 5.
   const { data, error } = await supabase
     .from("bill_services")
     .select(
@@ -110,18 +94,24 @@ export async function getTopServices(
     console.error("getTopServices error:", error);
     return [];
   }
+  type ServiceTotal = {
+  serviceName: string;
+  categoryName: string;
+  quantitySold: number;
+  revenue: number;
+};
 
-  // Gộp theo (tên dịch vụ + tên category) để tránh trường hợp hiếm gặp 2
-  // dịch vụ trùng tên nhưng khác category bị gộp nhầm vào nhau.
-  const totals = new Map<
-    string,
-    {
-      serviceName: string;
-      categoryName: string;
-      quantitySold: number;
-      revenue: number;
-    }
-  >();
+const totals = new Map<string, ServiceTotal>();
+
+  // const totals = new Map
+  //   string,
+  //   {
+  //     serviceName: string;
+  //     categoryName: string;
+  //     quantitySold: number;
+  //     revenue: number;
+  //   }
+  // >();
 
   for (const row of (data ?? []) as unknown as BillServiceRow[]) {
     const serviceName = row.services?.name ?? "—";

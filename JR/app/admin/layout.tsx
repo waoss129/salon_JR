@@ -6,7 +6,7 @@ import { createAdminBrowserClient } from "@/lib/supabase/client";
 import { logoutAction } from "@/app/admin/accounts/logout-action";
 import { getPendingAppointmentsSummary } from "@/app/admin/appointments/actions";
 import { getPendingProposalsSummary } from "@/app/admin/schedules/proposals/actions";
-import { canView } from "@/lib/supabase/permissions";
+import { canView, ROLE } from "@/lib/supabase/permissions";
 
 type PendingAppointmentItem = {
   id: string;
@@ -280,37 +280,40 @@ export default function AdminLayout({
               </Link>
             )}
 
-            {/* Role 3, 4, 5 (Quản lý, Chuyên viên, Lễ tân): trang tự chọn ca
-                cho đề xuất lịch tuần sau — cả 3 đều có thể được đề xuất lịch. */}
-            {roleId != null && [3, 4, 5].includes(roleId) && (
-              <Link
-                href="/admin/schedule-proposal"
-                className="flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition"
-              >
-                <span>Đề Xuất Lịch Của Tôi</span>
-                {ownProposalCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                    {ownProposalCount > 9 ? "9+" : ownProposalCount}
-                  </span>
-                )}
-              </Link>
-            )}
+            {/* Role 3, 4, 5: tự đăng ký ca làm việc của mình */}
+{roleId != null && [3, 4, 5].includes(roleId) && (
+  <Link
+    href="/admin/schedules/register"
+    className="block p-2.5 rounded hover:bg-purple-200 transition"
+  >
+    Đăng Ký Ca Làm
+  </Link>
+)}
 
-            {/* Role 1, 2, 3 (Admin, CEO, Quản lý): trang duyệt đề xuất lịch
-                của nhân viên khác. Quản lý (3) thấy CẢ 2 link này. */}
-            {roleId != null && [1, 2, 3].includes(roleId) && (
-              <Link
-                href="/admin/schedule-proposal/review"
-                className="flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition"
-              >
-                <span>Duyệt Đề Xuất Lịch</span>
-                {reviewProposalCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                    {reviewProposalCount > 9 ? "9+" : reviewProposalCount}
-                  </span>
-                )}
-              </Link>
-            )}
+{/* Role 1, 2, 3: thiết lập slot/ngưỡng trước khi mở đăng ký */}
+{roleId != null && [1, 2, 3].includes(roleId) && (
+  <Link
+    href="/admin/schedules/setup"
+    className="block p-2.5 rounded hover:bg-purple-200 transition"
+  >
+    Thiết Lập Ca
+  </Link>
+)}
+
+{/* Role 1, 2, 3: duyệt lịch nhân viên đã đăng ký */}
+{roleId != null && [1, 2, 3].includes(roleId) && (
+  <Link
+    href="/admin/schedules/review"
+    className="block p-2.5 rounded hover:bg-purple-200 transition"
+  >
+    Duyệt Đăng Ký
+  </Link>
+)}
+
+
+            
+
+          
 
             {canView(roleId, "appointments") && (
               <Link
@@ -339,47 +342,50 @@ export default function AdminLayout({
               </Link>
             )}
 
-            {canView(roleId, "statistics") && (
-              <div>
-                <button
-                  onClick={() => setOpenThongKe(!openThongKe)}
-                  className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
-                >
-                  <span>Thống Kê</span>
-                  <span className="text-xs transition-transform duration-200">
-                    {openThongKe ? "▲" : "▼"}
-                  </span>
-                </button>
-                {openThongKe && (
-                  <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
-                    <Link
-                      href="/admin/statistics/schedules"
-                      className="block p-2 text-sm hover:text-violet-500"
-                    >
-                      Lịch Làm Việc
-                    </Link>
-                    <Link
-                      href="/admin/statistics/working-hours"
-                      className="block p-2 text-sm hover:text-violet-500"
-                    >
-                      Thời Gian Làm Việc
-                    </Link>
-                    <Link
-                      href="/admin/statistics/payroll"
-                      className="block p-2 text-sm hover:text-violet-500"
-                    >
-                      Lương
-                    </Link>
-                    <Link
-                      href="/admin/statistics/revenue"
-                      className="block p-2 text-sm hover:text-violet-500"
-                    >
-                      Doanh Thu
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* CEO: 1 link duy nhất, không xổ dropdown, không có Lương riêng
+    (Lương đã gộp vào /admin/statistics/overview) */}
+{roleId === ROLE.CEO && canView(roleId, "statistics") && (
+  <Link
+    href="/admin/statistics/overview"
+    className="block p-2.5 rounded hover:bg-purple-200 transition"
+  >
+    Thống Kê
+  </Link>
+)}
+
+{/* Admin (và role khác nếu sau này được cấp quyền statistics):
+    giữ nguyên dropdown đầy đủ như cũ */}
+{roleId !== ROLE.CEO && canView(roleId, "statistics") && (
+  <div>
+    <button
+      onClick={() => setOpenThongKe(!openThongKe)}
+      className="w-full flex items-center justify-between p-2.5 rounded hover:bg-purple-200 transition text-left"
+    >
+      <span>Thống Kê</span>
+      <span className="text-xs transition-transform duration-200">
+        {openThongKe ? "▲" : "▼"}
+      </span>
+    </button>
+    {openThongKe && (
+      <div className="pl-6 mt-1 space-y-1 bg-sky-100/50 rounded-lg py-1">
+        <Link href="/admin/statistics/schedules" className="block p-2 text-sm hover:text-violet-500">
+          Lịch Làm Việc
+        </Link>
+        <Link href="/admin/statistics/working-hours" className="block p-2 text-sm hover:text-violet-500">
+          Thời Gian Làm Việc
+        </Link>
+        {canView(roleId, "payroll") && (
+          <Link href="/admin/statistics/payroll" className="block p-2 text-sm hover:text-violet-500">
+            Lương
+          </Link>
+        )}
+        <Link href="/admin/statistics/revenue" className="block p-2 text-sm hover:text-violet-500">
+          Doanh Thu
+        </Link>
+      </div>
+    )}
+  </div>
+)}
           </nav>
         </div>
 

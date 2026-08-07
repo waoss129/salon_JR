@@ -16,6 +16,7 @@ export type Feature =
   | "appointments"
   | "bills"
   | "statistics"
+  | "payroll"
   | "promotions";
 
 // view: được thấy menu + vào trang xem
@@ -55,6 +56,7 @@ export const PERMISSIONS: Record<
   // Role 3, 4, 5 KHÔNG thấy menu/trang Thống Kê — họ chỉ thấy số liệu tổng
   // quan sẵn có trên Dashboard (feature "dashboard" ở trên, khác trang này).
   statistics: { view: [1, 2] },
+payroll: { view: [1, 2] },
 };
 
 export function canView(roleId: number | null, feature: Feature): boolean {
