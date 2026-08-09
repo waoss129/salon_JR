@@ -62,6 +62,9 @@ export default function SetupBoard({ week, sessions, roles, capacity, requiremen
   });
 
   const dates = useMemo(() => (week ? getWeekDates(week.week_start) : []), [week]);
+  // Chỉ ngày thường mới cần đặt slot cho chuyên viên — cuối tuần để tự do đăng ký,
+  // admin ghép tay ở trang Duyệt Đăng Ký khi thấy cần thiết.
+  const weekdayDates = dates.filter((d) => !isWeekend(d));
   const weekendDates = dates.filter(isWeekend);
   const thresholdRoles = roles.filter((r) => THRESHOLD_ROLE_IDS.includes(r.id));
 
@@ -148,9 +151,13 @@ export default function SetupBoard({ week, sessions, roles, capacity, requiremen
       {errorMsg && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{errorMsg}</div>}
 
       <section>
-        <h2 className="text-base font-medium mb-3">Slot chuyên viên theo ca</h2>
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          {dates.map((date) => {
+        <h2 className="text-base font-medium mb-1">Slot chuyên viên theo ca</h2>
+        <p className="text-xs text-neutral-500 mb-3">
+          Chỉ áp dụng Thứ 2 – Thứ 6. Thứ 7 &amp; Chủ nhật chuyên viên tự do đăng ký, không giới hạn — vào
+          "Duyệt Đăng Ký" để ghép thêm người nếu thấy thiếu.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {weekdayDates.map((date) => {
             const dow = new Date(date).getDay() === 0 ? 7 : new Date(date).getDay();
             const daySessions = sessions.filter((s) => s.day_of_week === dow || s.day_of_week === null);
 

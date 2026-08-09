@@ -4,24 +4,14 @@ import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendScheduleConfirmedEmail } from "@/lib/email/sendScheduleConfirmedEmail";
 
-// Đồng bộ với setup/actions.ts và register/actions.ts
-const SELF_REGISTER_ROLE_IDS = [3, 4, 5]; // Quản lý, Chuyên viên, Lễ tân
+const SELF_REGISTER_ROLE_IDS = [3, 4, 5];
 const CHUYEN_VIEN_ROLE_ID = 4;
-const THRESHOLD_ROLE_IDS = [3, 5];
-const MIN_WEEKDAY = 4;
-const MIN_WEEKEND = 1;
 
 async function requireScheduleManager(): Promise<string> {
   const supabase = await createAdminAuthClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Bạn cần đăng nhập lại.");
-
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("role_id")
-    .eq("id", user.id)
-    .single();
-
+  const { data: employee } = await supabase.from("employees").select("role_id").eq("id", user.id).single();
   if (!employee || ![1, 2, 3].includes(employee.role_id)) {
     throw new Error("Bạn không có quyền duyệt lịch làm việc.");
   }
@@ -31,6 +21,11 @@ async function requireScheduleManager(): Promise<string> {
 function isWeekend(dateStr: string) {
   const day = new Date(dateStr).getDay();
   return day === 0 || day === 6;
+}
+
+function toAppDow(dateStr: string) {
+  const d = new Date(dateStr).getDay();
+  return d === 0 ? 7 : d;
 }
 
 export async function getLatestWeek() {
@@ -56,28 +51,22 @@ export type EmployeeRegSummary = {
   shifts: { sessionId: number; sessionName: string; date: string; status: string }[];
 };
 
-export type ShiftCapacityRow = {
+export type DropTargetShift = {
   sessionId: number;
   sessionName: string;
   date: string;
-  slotTarget: number;
   currentCount: number;
-  slotsRemaining: number;
+  slotTarget: number | null;
+  slotsRemaining: number | null;
 };
 
-export type RoleDayRow = {
-  date: string;
-  roleId: number;
-  roleName: string;
-  minCount: number;
-  currentCount: number;
-};
+export type RoleDayRow = { date: string; roleId: number; roleName: string; minCount: number; currentCount: number };
 
 export async function getReviewData(weekId: string) {
   const supabase = await createAdminAuthClient();
 
-  // 1. Nhân viên thuộc 3 vai trò, kèm role_name — employees <-> profiles không có FK
-  // trực tiếp nên phải query 2 lần rồi merge bằng tay (giống getEmployees ở admin/schedules).
+  const { data: weekRow } = await supabase.from("schedule_weeks").select("week_start").eq("id", weekId).single();
+
   const { data: employeesData, error: empErr } = await supabase
     .from("employees")
     .select("id, role_id, status, roles ( role_name )")
@@ -93,7 +82,6 @@ export async function getReviewData(weekId: string) {
   if (profilesErr) throw new Error(profilesErr.message);
   const profileMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
 
-  // 2. Đăng ký của tuần này, kèm tên ca
   const { data: registrations, error: regErr } = await supabase
     .from("shift_registrations")
     .select("id, employee_id, session_id, date, status, session:sessions ( name )")
@@ -102,6 +90,8 @@ export async function getReviewData(weekId: string) {
   if (regErr) throw new Error(regErr.message);
 
   const regsByEmployee = new Map<string, any[]>();
+  const roleByEmployee = new Map<string, number>();
+  for (const e of employeesData ?? []) roleByEmployee.set((e as any).id, (e as any).role_id);
   for (const r of registrations ?? []) {
     const arr = regsByEmployee.get(r.employee_id) ?? [];
     arr.push(r);
@@ -119,7 +109,7 @@ export async function getReviewData(weekId: string) {
       roleName: e.roles?.role_name ?? "",
       weekdayCount,
       weekendCount,
-      meetsMinimum: weekdayCount >= MIN_WEEKDAY && weekendCount >= MIN_WEEKEND,
+      meetsMinimum: weekdayCount >= 4 && weekendCount >= 1,
       shifts: regs.map((r: any) => ({
         sessionId: r.session_id,
         sessionName: r.session?.name ?? "",
@@ -129,23 +119,42 @@ export async function getReviewData(weekId: string) {
     };
   });
 
-  // 3. Slot chuyên viên (view shift_capacity_status), kèm tên ca
   const { data: capacityRaw, error: capErr } = await supabase
     .from("shift_capacity_status")
     .select("session_id, date, slot_target, current_count, slots_remaining, session:sessions ( name )")
     .eq("week_id", weekId);
   if (capErr) throw new Error(capErr.message);
 
-  const shiftCapacity: ShiftCapacityRow[] = (capacityRaw ?? []).map((c: any) => ({
-    sessionId: c.session_id,
-    sessionName: c.session?.name ?? "",
-    date: c.date,
-    slotTarget: c.slot_target,
-    currentCount: c.current_count,
-    slotsRemaining: c.slots_remaining,
-  }));
+  const weekdayTargets: DropTargetShift[] = (capacityRaw ?? [])
+    .filter((c: any) => c.slots_remaining > 0)
+    .map((c: any) => ({
+      sessionId: c.session_id,
+      sessionName: c.session?.name ?? "",
+      date: c.date,
+      currentCount: c.current_count,
+      slotTarget: c.slot_target,
+      slotsRemaining: c.slots_remaining,
+    }));
 
-  // 4. Ngưỡng cuối tuần quản lý/lễ tân (view role_day_status), kèm tên vai trò
+  const { data: sessionsData } = await supabase.from("sessions").select("id, name, day_of_week");
+  const weekStart = weekRow?.week_start as string | undefined;
+  const weekendTargets: DropTargetShift[] = [];
+  if (weekStart) {
+    for (const offset of [5, 6]) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + offset);
+      const date = d.toISOString().slice(0, 10);
+      const dow = toAppDow(date);
+      const applicableSessions = (sessionsData ?? []).filter((s: any) => s.day_of_week === dow || s.day_of_week === null);
+      for (const s of applicableSessions) {
+        const currentCount = (registrations ?? []).filter(
+          (r: any) => r.session_id === s.id && r.date === date && roleByEmployee.get(r.employee_id) === CHUYEN_VIEN_ROLE_ID,
+        ).length;
+        weekendTargets.push({ sessionId: s.id, sessionName: (s as any).name, date, currentCount, slotTarget: null, slotsRemaining: null });
+      }
+    }
+  }
+
   const { data: roleDayRaw, error: roleDayErr } = await supabase
     .from("role_day_status")
     .select("date, role_id, min_count, current_count, roles:role_id ( role_name )")
@@ -162,24 +171,26 @@ export async function getReviewData(weekId: string) {
 
   return {
     byRole: {
-      quanLy: employeeSummaries.filter((e) => THRESHOLD_ROLE_IDS.includes(e.roleId) && e.roleId !== 5),
+      quanLy: employeeSummaries.filter((e) => e.roleId === 3),
       chuyenVien: employeeSummaries.filter((e) => e.roleId === CHUYEN_VIEN_ROLE_ID),
       leTan: employeeSummaries.filter((e) => e.roleId === 5),
     },
     unassignedEmployees: employeeSummaries.filter((e) => !e.meetsMinimum),
-    understaffedShifts: shiftCapacity.filter((s) => s.slotsRemaining > 0),
+    dropTargets: [...weekdayTargets, ...weekendTargets],
     roleDayStatus,
   };
 }
 
-export async function assignEmployeeToShift(input: {
-  weekId: string;
-  employeeId: string;
-  sessionId: number;
-  date: string;
-}) {
+export async function assignEmployeeToShift(input: { weekId: string; employeeId: string; sessionId: number; date: string }) {
   const adminId = await requireScheduleManager();
   const supabase = await createAdminAuthClient();
+
+  // CHẶN sửa sau khi tuần đã chốt — đây là lỗi bị bỏ sót trước đó, giờ thêm lại.
+  const { data: week, error: weekErr } = await supabase.from("schedule_weeks").select("status").eq("id", input.weekId).single();
+  if (weekErr || !week) throw new Error("Không tìm thấy tuần lịch.");
+  if (week.status === "confirmed") {
+    throw new Error("Tuần này đã được chốt lịch và gửi mail — không thể chỉnh sửa thêm.");
+  }
 
   const { data: existing } = await supabase
     .from("shift_registrations")
@@ -199,7 +210,6 @@ export async function assignEmployeeToShift(input: {
     assigned_by: adminId,
   });
   if (error) throw new Error(error.message);
-
   revalidatePath("/admin/schedules/review");
 }
 
@@ -207,11 +217,7 @@ export async function confirmWeekSchedule(weekId: string) {
   const adminId = await requireScheduleManager();
   const supabase = await createAdminAuthClient();
 
-  const { data: week, error: weekErr } = await supabase
-    .from("schedule_weeks")
-    .select("id, status")
-    .eq("id", weekId)
-    .single();
+  const { data: week, error: weekErr } = await supabase.from("schedule_weeks").select("id, status").eq("id", weekId).single();
   if (weekErr || !week) throw new Error("Không tìm thấy tuần lịch.");
   if (week.status === "confirmed") throw new Error("Tuần này đã được chốt trước đó.");
 
@@ -244,7 +250,6 @@ export async function confirmWeekSchedule(weekId: string) {
   revalidatePath("/admin/schedules/review");
   revalidatePath("/admin/schedules");
 
-  // Gửi mail cho từng nhân viên — không để lỗi mail làm hỏng việc chốt lịch đã lưu.
   const byEmployee = new Map<string, any[]>();
   for (const r of registrations as any[]) {
     const arr = byEmployee.get(r.employee_id) ?? [];
@@ -253,10 +258,7 @@ export async function confirmWeekSchedule(weekId: string) {
   }
 
   const employeeIds = [...byEmployee.keys()];
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, fullname, email")
-    .in("id", employeeIds);
+  const { data: profiles } = await supabase.from("profiles").select("id, fullname, email").in("id", employeeIds);
   const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
   let sentCount = 0;
@@ -273,11 +275,7 @@ export async function confirmWeekSchedule(weekId: string) {
       shiftLabel: s.session?.shift_type === "CH" ? "Chiều" : "Sáng",
       isSpecial: isWeekend(s.date),
     }));
-    const result = await sendScheduleConfirmedEmail({
-      toEmail: profile.email,
-      employeeName: profile.fullname ?? "bạn",
-      shifts: shiftsForEmail,
-    });
+    const result = await sendScheduleConfirmedEmail({ toEmail: profile.email, employeeName: profile.fullname ?? "bạn", shifts: shiftsForEmail });
     if (result.success) sentCount++;
     else failedCount++;
   }

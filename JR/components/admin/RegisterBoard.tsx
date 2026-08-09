@@ -32,7 +32,7 @@ type Props = {
   sessions: Session[];
   capacityStatus: CapacityStatus[];
   myRegistrations: MyRegistration[];
-  isSlotCapped: boolean;
+  isSlotCapped: boolean; // true nếu vai trò là chuyên viên (áp dụng ngày thường)
 };
 
 const WEEKDAY_LABEL = ["", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
@@ -80,7 +80,7 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
     setPendingKey(key);
     startTransition(async () => {
       try {
-        await registerShift({ weekId: week.id, sessionId, date, isSlotCapped });
+        await registerShift({ weekId: week.id, sessionId, date });
       } catch (err: any) {
         const code = err?.message ?? "";
         if (code.includes("SLOT_FULL")) setErrorMsg("Ca này vừa đầy, vui lòng chọn ca khác.");
@@ -133,19 +133,25 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
         {dates.map((date) => {
           const dow = new Date(date).getDay() === 0 ? 7 : new Date(date).getDay();
           const daySessions = sessions.filter((s) => s.day_of_week === dow || s.day_of_week === null);
+          const weekend = isWeekend(date);
+          // Capped chỉ khi: vai trò là chuyên viên VÀ ngày thường. Cuối tuần luôn tự do.
+          const shiftIsCapped = isSlotCapped && !weekend;
 
           return (
             <div key={date} className="border rounded-lg p-3 space-y-2">
               <div className="text-sm font-medium">
                 {WEEKDAY_LABEL[dow]}
                 <div className="text-xs text-neutral-500">{date}</div>
+                {isSlotCapped && weekend && (
+                  <div className="text-xs text-emerald-600 font-normal">Tự do đăng ký</div>
+                )}
               </div>
 
               {daySessions.map((s) => {
                 const key = `${s.id}_${date}`;
                 const cap = capacityMap.get(key);
                 const myReg = myRegMap.get(key);
-                const isFull = isSlotCapped && cap && cap.slots_remaining <= 0 && !myReg;
+                const isFull = shiftIsCapped && cap && cap.slots_remaining <= 0 && !myReg;
                 const busy = isPending && (pendingKey === key || pendingKey === myReg?.id);
 
                 if (isFull) return null;
@@ -163,7 +169,7 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
                     <div className="opacity-70">
                       {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
                     </div>
-                    {isSlotCapped && cap && (
+                    {shiftIsCapped && cap && (
                       <div className="opacity-70">
                         {cap.current_count}/{cap.slot_target} đã đăng ký
                       </div>

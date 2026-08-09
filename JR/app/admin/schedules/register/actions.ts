@@ -3,9 +3,13 @@
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// Đồng bộ với app/admin/schedules/setup/actions.ts — role 4 = chuyên viên (bị giới hạn slot)
 const CHUYEN_VIEN_ROLE_ID = 4;
-const SELF_REGISTER_ROLE_IDS = [3, 4, 5]; // Quản lý, Chuyên viên, Lễ tân
+const SELF_REGISTER_ROLE_IDS = [3, 4, 5];
+
+function isWeekend(dateStr: string) {
+  const day = new Date(dateStr).getDay();
+  return day === 0 || day === 6;
+}
 
 async function requireSelfRegisterRole(): Promise<{ userId: string; roleId: number }> {
   const supabase = await createAdminAuthClient();
@@ -70,16 +74,15 @@ export async function getMyRegistrations(weekId: string) {
 
 export async function getMyRoleInfo() {
   const { roleId } = await requireSelfRegisterRole();
+  // Đây là cờ "thuộc nhóm bị giới hạn slot" ở MỨC VAI TRÒ, chỉ dùng để UI quyết định
+  // có cần hiển thị số liệu capacity không. Quyết định THẬT (có giới hạn cho ĐÚNG
+  // ca này hay không) luôn được tính lại trong registerShift() ở dưới, theo cả
+  // role LẪN ngày — cuối tuần luôn tự do dù là chuyên viên.
   return { roleId, isSlotCapped: roleId === CHUYEN_VIEN_ROLE_ID };
 }
 
-export async function registerShift(params: {
-  weekId: string;
-  sessionId: number;
-  date: string;
-  isSlotCapped: boolean;
-}) {
-  const { userId } = await requireSelfRegisterRole();
+export async function registerShift(params: { weekId: string; sessionId: number; date: string }) {
+  const { userId, roleId } = await requireSelfRegisterRole();
   const supabase = await createAdminAuthClient();
 
   const { data: week } = await supabase
@@ -95,7 +98,11 @@ export async function registerShift(params: {
     throw new Error("DEADLINE_PASSED");
   }
 
-  if (params.isSlotCapped) {
+  // Quy tắc: chuyên viên bị giới hạn slot CHỈ vào ngày thường (T2-T6).
+  // Cuối tuần (T7, CN) mọi vai trò đều đăng ký tự do, không kiểm tra slot.
+  const isSlotCapped = roleId === CHUYEN_VIEN_ROLE_ID && !isWeekend(params.date);
+
+  if (isSlotCapped) {
     const { error } = await supabase.rpc("register_shift_slot", {
       p_employee_id: userId,
       p_session_id: params.sessionId,
