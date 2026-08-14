@@ -3,8 +3,6 @@
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// Vai trò không chọn slot, chỉ có ngưỡng tối thiểu cuối tuần (Quản lý = 3, Lễ tân = 5).
-// Đổi lại nếu role_id thực tế trong DB của bạn khác.
 const THRESHOLD_ROLE_IDS = [3, 5];
 
 export type ScheduleWeek = {
@@ -17,6 +15,7 @@ export type ScheduleWeek = {
 
 export type CapacityRow = { session_id: number; date: string; slot_target: number };
 export type RequirementRow = { date: string; role_id: number; min_count: number };
+export type CapacityStatusRow = { session_id: number; date: string; current_count: number };
 
 function toIso(d: Date) {
   const y = d.getFullYear();
@@ -36,7 +35,6 @@ function computeNextWeekRange() {
   const nextSunday = new Date(nextMonday);
   nextSunday.setDate(nextMonday.getDate() + 6);
 
-  // Hạn chót: 21h thứ 7 TUẦN NÀY — trước khi tuần sau bắt đầu
   const thisSaturday = new Date(thisMonday);
   thisSaturday.setDate(thisMonday.getDate() + 5);
   thisSaturday.setHours(21, 0, 0, 0);
@@ -49,12 +47,7 @@ async function requireScheduleManager(): Promise<number> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Bạn cần đăng nhập lại.");
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("role_id")
-    .eq("id", user.id)
-    .single();
-
+  const { data: employee } = await supabase.from("employees").select("role_id").eq("id", user.id).single();
   if (!employee || ![1, 2, 3].includes(employee.role_id)) {
     throw new Error("Bạn không có quyền thiết lập lịch làm việc.");
   }
@@ -78,26 +71,17 @@ export async function createScheduleWeek(): Promise<ScheduleWeek> {
   const supabase = await createAdminAuthClient();
   const { weekStart, weekEnd, deadlineIso } = computeNextWeekRange();
 
-  const { data: existing } = await supabase
-    .from("schedule_weeks")
-    .select("id")
-    .eq("week_start", weekStart)
-    .maybeSingle();
+  const { data: existing } = await supabase.from("schedule_weeks").select("id").eq("week_start", weekStart).maybeSingle();
   if (existing) throw new Error("Tuần này đã được tạo trước đó.");
 
   const { data, error } = await supabase
     .from("schedule_weeks")
-    .insert({
-      week_start: weekStart,
-      week_end: weekEnd,
-      registration_deadline: deadlineIso,
-      status: "open_for_registration",
-    })
+    .insert({ week_start: weekStart, week_end: weekEnd, registration_deadline: deadlineIso, status: "open_for_registration" })
     .select()
     .single();
   if (error) throw new Error(error.message);
 
-  revalidatePath("/admin/schedule-setup");
+  revalidatePath("/admin/schedules/setup");
   return data;
 }
 
@@ -116,15 +100,21 @@ export async function getWeekSetup(weekId: string) {
     .eq("week_id", weekId);
   if (reqErr) throw new Error(reqErr.message);
 
-  return { capacity: (capacity ?? []) as CapacityRow[], requirements: (requirements ?? []) as RequirementRow[] };
+  // Số người ĐÃ đăng ký thật cho từng ca — cần để biết giảm slot tới đâu là an toàn.
+  const { data: capacityStatus, error: statusErr } = await supabase
+    .from("shift_capacity_status")
+    .select("session_id, date, current_count")
+    .eq("week_id", weekId);
+  if (statusErr) throw new Error(statusErr.message);
+
+  return {
+    capacity: (capacity ?? []) as CapacityRow[],
+    requirements: (requirements ?? []) as RequirementRow[],
+    capacityStatus: (capacityStatus ?? []) as CapacityStatusRow[],
+  };
 }
 
-export async function setShiftCapacity(input: {
-  weekId: string;
-  sessionId: number;
-  date: string;
-  slotTarget: number;
-}) {
+export async function setShiftCapacity(input: { weekId: string; sessionId: number; date: string; slotTarget: number }) {
   await requireScheduleManager();
   const supabase = await createAdminAuthClient();
 
@@ -136,13 +126,24 @@ export async function setShiftCapacity(input: {
     .maybeSingle();
 
   if (existing) {
+    // Cho phép giảm — chỉ chặn nếu giảm xuống dưới số người ĐÃ đăng ký thật
+    // (không phải dưới slot_target cũ). Trigger DB cũng chặn lại lần cuối,
+    // đây là kiểm tra sớm để báo lỗi thân thiện hơn.
     if (input.slotTarget < existing.slot_target) {
-      throw new Error("Slot chỉ được tăng, không được giảm.");
+      const { count, error: countErr } = await supabase
+        .from("shift_registrations")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", input.sessionId)
+        .eq("date", input.date)
+        .neq("status", "cancelled");
+      if (countErr) throw new Error(countErr.message);
+
+      if ((count ?? 0) > input.slotTarget) {
+        throw new Error(`Không thể giảm xuống dưới số người đã đăng ký hiện tại (đang có ${count} người).`);
+      }
     }
-    const { error } = await supabase
-      .from("shift_capacity")
-      .update({ slot_target: input.slotTarget })
-      .eq("id", existing.id);
+
+    const { error } = await supabase.from("shift_capacity").update({ slot_target: input.slotTarget }).eq("id", existing.id);
     if (error) throw new Error(error.message);
   } else {
     const { error } = await supabase.from("shift_capacity").insert({
@@ -154,15 +155,10 @@ export async function setShiftCapacity(input: {
     if (error) throw new Error(error.message);
   }
 
-  revalidatePath("/admin/schedule-setup");
+  revalidatePath("/admin/schedules/setup");
 }
 
-export async function setRoleDayRequirement(input: {
-  weekId: string;
-  date: string;
-  roleId: number;
-  minCount: number;
-}) {
+export async function setRoleDayRequirement(input: { weekId: string; date: string; roleId: number; minCount: number }) {
   await requireScheduleManager();
   if (!THRESHOLD_ROLE_IDS.includes(input.roleId)) {
     throw new Error("Vai trò này không sử dụng ngưỡng tối thiểu.");
@@ -177,10 +173,7 @@ export async function setRoleDayRequirement(input: {
     .maybeSingle();
 
   if (existing) {
-    const { error } = await supabase
-      .from("role_day_requirements")
-      .update({ min_count: input.minCount })
-      .eq("id", existing.id);
+    const { error } = await supabase.from("role_day_requirements").update({ min_count: input.minCount }).eq("id", existing.id);
     if (error) throw new Error(error.message);
   } else {
     const { error } = await supabase.from("role_day_requirements").insert({
@@ -192,5 +185,5 @@ export async function setRoleDayRequirement(input: {
     if (error) throw new Error(error.message);
   }
 
-  revalidatePath("/admin/schedule-setup");
+  revalidatePath("/admin/schedules/setup");
 }

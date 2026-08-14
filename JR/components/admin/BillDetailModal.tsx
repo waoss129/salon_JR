@@ -180,6 +180,7 @@ export default function BillDetailModal({
             <tbody>${rowsHtml}</tbody>
           </table>
           <div class="total">Tổng tiền: ${formatCurrency(bill.total_price)}</div>
+          <div style="text-align:right;font-size:11px;color:#888;margin-top:2px;">(Đã bao gồm thuế VAT)</div>
           <div class="qr">
             <img src="${qrDataUrl}" width="180" height="180" />
           </div>
@@ -294,6 +295,9 @@ export default function BillDetailModal({
                     value={formatCurrency(bill.total_price)}
                   />
                 </div>
+                <p className="mt-2 text-xs text-gray-400">
+                  (Đã bao gồm thuế VAT)
+                </p>
               </section>
 
               {/* Dịch vụ thực hiện */}

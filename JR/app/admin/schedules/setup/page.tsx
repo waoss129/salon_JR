@@ -5,7 +5,7 @@ import SetupBoard from "@/components/admin/SetupBoard";
 export default async function ScheduleSetupPage() {
   const week = await getActiveOrLatestWeek();
   const [sessions, roles] = await Promise.all([getSessions(), getRoles()]);
-  const setup = week ? await getWeekSetup(week.id) : { capacity: [], requirements: [] };
+  const setup = week ? await getWeekSetup(week.id) : { capacity: [], requirements: [], capacityStatus: [] };
 
   return (
     <div className="p-6">
@@ -16,6 +16,7 @@ export default async function ScheduleSetupPage() {
         roles={roles}
         capacity={setup.capacity}
         requirements={setup.requirements}
+        capacityStatus={setup.capacityStatus}
       />
     </div>
   );
