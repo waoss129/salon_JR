@@ -10,6 +10,7 @@ import {
   type AppointmentStatus,
   type AvailableEmployeeOption,
 } from "@/app/admin/appointments/actions";
+import { canManage, canUpdateAppointmentStatus } from "@/lib/supabase/permissions";
 
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
   pending: "Chờ xác nhận",
@@ -53,12 +54,31 @@ function formatCurrency(amount: number) {
   return amount.toLocaleString("vi-VN") + "đ";
 }
 
+// KHÔNG dùng toISOString() để lấy ngày — nó quy đổi sang UTC, khiến ngày bị
+// lùi 1 hôm với múi giờ Việt Nam (UTC+7). Đây chính là nguyên nhân bug nút
+// "sau" bị đứng yên: local +1 ngày rồi convert UTC lại trừ về đúng ngày cũ.
+function shiftDateSafely(dateStr: string, days: number) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + days);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 export function AppointmentManager({
   initialAppointments,
   initialDate,
+  viewerRoleId,
+  viewerEmployeeId,
+  isSelfServiceOnly,
 }: {
   initialAppointments: AppointmentRow[];
   initialDate: string;
+  viewerRoleId?: number | null;
+  viewerEmployeeId?: string | null;
+  isSelfServiceOnly?: boolean;
 }) {
   const [appointments, setAppointments] =
     useState<AppointmentRow[]>(initialAppointments);
@@ -68,13 +88,15 @@ export function AppointmentManager({
   const [isPending, startTransition] = useTransition();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // State cho modal "Gán nhân viên"
   const [assigningFor, setAssigningFor] = useState<AppointmentRow | null>(null);
   const [employeeOptions, setEmployeeOptions] = useState<
     AvailableEmployeeOption[]
   >([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+
+  const canAssignAppointments = canManage(viewerRoleId ?? null, "appointments");
+  const canUpdateStatus = canUpdateAppointmentStatus(viewerRoleId ?? null);
 
   function refresh(
     nextDate: string,
@@ -86,16 +108,14 @@ export function AppointmentManager({
         date: nextDate,
         status: nextStatus || undefined,
         search: nextSearch || undefined,
+        onlyEmployeeId: isSelfServiceOnly && viewerEmployeeId ? viewerEmployeeId : undefined,
       });
       setAppointments(data);
     });
   }
 
   function shiftDay(days: number) {
-    const [y, m, d] = date.split("-").map(Number);
-    const next = new Date(y, m - 1, d);
-    next.setDate(next.getDate() + days);
-    const nextDate = next.toISOString().slice(0, 10);
+    const nextDate = shiftDateSafely(date, days);
     setDate(nextDate);
     refresh(nextDate, status, search);
   }
@@ -221,7 +241,9 @@ export function AppointmentManager({
           {!isPending && appointments.length === 0 && (
             <tr>
               <td colSpan={7} className="p-3 text-center text-gray-400">
-                Chưa có lịch hẹn nào trong ngày này
+                {isSelfServiceOnly
+                  ? "Bạn chưa được gán lịch hẹn nào trong ngày này"
+                  : "Chưa có lịch hẹn nào trong ngày này"}
               </td>
             </tr>
           )}
@@ -229,8 +251,9 @@ export function AppointmentManager({
             appointments.map((a) => {
               const total = a.details.reduce((sum, d) => sum + d.price, 0);
               const time = new Date(a.appointment_date);
-              const actions = NEXT_ACTIONS[a.status];
-              const canAssign = ASSIGNABLE_STATUSES.includes(a.status);
+              const actions = canUpdateStatus ? NEXT_ACTIONS[a.status] : [];
+              const canAssign =
+                canAssignAppointments && ASSIGNABLE_STATUSES.includes(a.status);
 
               return (
                 <tr key={a.id} className="border-t align-top">
@@ -308,7 +331,6 @@ export function AppointmentManager({
         </tbody>
       </table>
 
-      {/* Modal gán nhân viên */}
       {assigningFor && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">

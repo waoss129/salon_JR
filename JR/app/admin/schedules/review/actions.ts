@@ -29,6 +29,11 @@ function toAppDow(dateStr: string) {
 }
 
 export async function getLatestWeek() {
+  // Trang duyệt lịch chỉ dành cho role 1, 2, 3 (giống mọi hàm ghi bên dưới)
+  // — trước đây hàm này KHÔNG có dòng này, nên ai gọi cũng lấy được tuần
+  // mới nhất, mở đường cho getReviewData() lộ toàn bộ dữ liệu nhân viên.
+  await requireScheduleManager();
+
   const supabase = await createAdminAuthClient();
   const { data, error } = await supabase
     .from("schedule_weeks")
@@ -63,6 +68,11 @@ export type DropTargetShift = {
 export type RoleDayRow = { date: string; roleId: number; roleName: string; minCount: number; currentCount: number };
 
 export async function getReviewData(weekId: string) {
+  // QUAN TRỌNG: đây là hàm trả về đăng ký ca của TOÀN BỘ nhân viên (mọi
+  // role) — tuyệt đối không được để lộ cho role 4/5 (chỉ được xem lịch của
+  // chính mình, xem PERMISSIONS.schedules trong lib/supabase/permissions.ts).
+  await requireScheduleManager();
+
   const supabase = await createAdminAuthClient();
 
   // TRƯỚC: 5 query này chạy tuần tự (await từng cái) — mỗi cái tốn 1 round-trip

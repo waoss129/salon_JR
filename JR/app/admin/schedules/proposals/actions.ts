@@ -2,7 +2,13 @@
 
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { sendScheduleProposalEmail } from "@/lib/email/sendScheduleProposalEmail";
+// TẮT: sendScheduleProposalEmail đã bị comment hết trong
+// lib/email/sendScheduleProposalEmail.ts (không còn export nào) từ khi
+// chuyển sang mô hình đăng ký mới (setup -> register -> review). Toàn bộ
+// luồng "đề xuất lịch" ở file này đã ngừng dùng (2 trang gọi tới nó ở
+// app/admin/schedule-proposal/* đều redirect ngay dòng đầu), giữ lại file
+// này chỉ để không phải xoá — comment import để không vỡ build nữa.
+// import { sendScheduleProposalEmail } from "@/lib/email/sendScheduleProposalEmail";
 import { sendScheduleConfirmedEmail } from "@/lib/email/sendScheduleConfirmedEmail";
 
 export type ProposalShiftInput = { date: string; sessionId: number };
@@ -437,6 +443,13 @@ export async function submitMyProposalSelection(input: {
  * Chủ nhật, được chọn cả 2 nếu muốn), mỗi ngày cuối tuần cũng chỉ 1 ca.
  * Chưa ghi gì vào bảng `schedules` thật — chỉ tạo bản đề xuất, chờ nhân
  * viên chọn rồi admin chốt (Giai đoạn B, C).
+ *
+ * TẮT: sendScheduleProposalEmail không còn dùng được (xem comment import ở
+ * đầu file) — hàm này vẫn TẠO ĐƯỢC đề xuất lịch bình thường (dữ liệu vẫn
+ * lưu vào DB đầy đủ), chỉ riêng bước gửi mail thông báo bị bỏ qua, luôn trả
+ * về emailSent: false kèm lý do. Hàm này cũng không còn được gọi từ UI nào
+ * (2 trang duy nhất từng gọi tới đều đã redirect), nên trên thực tế không
+ * ảnh hưởng gì.
  */
 export async function createScheduleProposal(input: {
   employeeId: string;
@@ -565,61 +578,15 @@ export async function createScheduleProposal(input: {
 
   revalidatePath("/admin/schedules");
 
-  // Gửi mail thông báo — KHÔNG để lỗi gửi mail làm hỏng thao tác tạo đề xuất
-  // (đề xuất đã lưu thành công vào DB rồi, chỉ là chưa báo được cho nhân viên
-  // qua email; admin vẫn thấy được đề xuất này trong hệ thống bình thường).
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("fullname, email")
-    .eq("id", input.employeeId)
-    .single();
-
-  let emailSent = false;
-  let emailError: string | undefined;
-
-  if (profile?.email) {
-    // Cần tên ca (Sáng/Chiều) để hiển thị trong mail — tra lại từ bảng sessions,
-    // dùng đúng cột shift_type thay vì đoán qua tên.
-    const sessionIds = [...input.regularShifts, ...input.specialShifts].map(
-      (s) => s.sessionId,
-    );
-    const { data: sessionRows } = await supabase
-      .from("sessions")
-      .select("id, shift_type")
-      .in("id", sessionIds);
-    const sessionShiftMap = new Map(
-      (sessionRows ?? []).map((s) => [s.id, s.shift_type]),
-    );
-
-    const shiftsForEmail = [
-      ...input.regularShifts.map((s) => ({
-        date: s.date,
-        shiftLabel:
-          sessionShiftMap.get(s.sessionId) === "CH" ? "Chiều" : "Sáng",
-        isSpecial: false,
-      })),
-      ...input.specialShifts.map((s) => ({
-        date: s.date,
-        shiftLabel: "Cả ngày",
-        isSpecial: true,
-      })),
-    ];
-
-    const result = await sendScheduleProposalEmail({
-      toEmail: profile.email,
-      employeeName: profile.fullname ?? "bạn",
-      weekStart,
-      weekEnd,
-      deadlineIso,
-      shifts: shiftsForEmail,
-    });
-    emailSent = result.success;
-    emailError = result.error;
-  } else {
-    emailError = "Nhân viên chưa có email trong hồ sơ.";
-  }
-
-  return { batchId: batch.id as string, emailSent, emailError };
+  // TẮT: trước đây gửi mail #1 (thông báo có đề xuất mới) bằng
+  // sendScheduleProposalEmail — hàm đó không còn dùng được (xem đầu file).
+  // Trả về thẳng emailSent: false, không thử gửi nữa, tránh crash hàm.
+  return {
+    batchId: batch.id as string,
+    emailSent: false,
+    emailError:
+      "Tính năng gửi mail đề xuất đã ngừng sử dụng (đã chuyển sang mô hình đăng ký ca mới).",
+  };
 }
 
 // ============================================================
@@ -709,6 +676,10 @@ export async function getProposalsForNextWeek(): Promise<
  * Admin chốt 1 batch: copy các ca đang được chọn (is_selected = true) thành
  * dòng thật trong bảng `schedules` (status = 'assigned'), đánh dấu batch đã
  * confirmed, rồi gửi mail #2 báo cho nhân viên biết lịch đã chốt.
+ *
+ * Mail #2 dùng sendScheduleConfirmedEmail — hàm NÀY vẫn hoạt động bình
+ * thường (không bị comment như sendScheduleProposalEmail), nên không cần
+ * sửa gì ở phần dưới.
  */
 export async function confirmProposalBatch(batchId: string) {
   await requireScheduleManager();

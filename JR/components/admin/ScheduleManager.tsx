@@ -9,7 +9,6 @@ import {
   type ScheduleStatus,
 } from "@/app/admin/schedules/actions";
 import { AddScheduleForm } from "./ScheduleForm";
-import ProposeScheduleModal from "./ProposeScheduleModal";
 import { canManage } from "@/lib/supabase/permissions";
 
 type Role = { id: number; role_name: string };
@@ -65,15 +64,27 @@ export function ScheduleManager({
   const [roleId, setRoleId] = useState<number | "">("");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [showProposeModal, setShowProposeModal] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Role 4 (Beautician): chỉ xem + check-in lịch của chính mình, không có
-  // bộ lọc, không thêm được lịch.
-  const isSelfServiceOnly = viewerRoleId === 4;
+  // Role 4 (Beautician) và Role 5 (Lễ tân): chỉ xem lịch của chính mình,
+  // không có bộ lọc, không thêm được lịch (xem canViewOwnScheduleOnly()
+  // trong lib/supabase/permissions.ts).
+  const isSelfServiceOnly = viewerRoleId === 4 || viewerRoleId === 5;
+
+  // Cả role 4 (beautician) và role 5 (lễ tân) đều được tự check-in/hoàn
+  // thành ca của chính mình — khớp canCheckInOwnSchedule() trong
+  // lib/supabase/permissions.ts.
+  const canCheckIn = viewerRoleId === 4 || viewerRoleId === 5;
+
   const canAddSchedule = canManage(viewerRoleId ?? null, "schedules");
+
+  // Có cột "Hành động" hay không, tuỳ theo đang ở chế độ tự xem (role 4/5)
+  // hay chế độ quản lý (role 1/2/3).
+  const showActionColumn = isSelfServiceOnly ? canCheckIn : canAddSchedule;
+  const baseColumnCount = isSelfServiceOnly ? 3 : 5; // Ngày/Ca/Trạng thái, hoặc +Nhân viên/Vai trò
+  const columnCount = baseColumnCount + (showActionColumn ? 1 : 0);
 
   // Danh sách nhân viên cho form Thêm lịch phải khớp với bộ lọc vai trò
   // đang chọn ở ngoài — nếu không lọc ở đây, form sẽ luôn hiện cả 3 role
@@ -181,12 +192,6 @@ export function ScheduleManager({
           {canAddSchedule && (
             <div className="ml-auto flex gap-2">
               <button
-                onClick={() => setShowProposeModal(true)}
-                className="border border-black rounded px-3 py-1.5 text-sm hover:bg-gray-50"
-              >
-                Đề xuất lịch tuần sau
-              </button>
-              <button
                 onClick={() => setShowForm(true)}
                 className="bg-black text-white rounded px-3 py-1.5 text-sm"
               >
@@ -233,40 +238,20 @@ export function ScheduleManager({
             <th className="text-left p-2">Ngày</th>
             <th className="text-left p-2">Ca</th>
             <th className="text-left p-2">Trạng thái</th>
-            {(isSelfServiceOnly || canAddSchedule) && (
-              <th className="text-left p-2">Hành động</th>
-            )}
+            {showActionColumn && <th className="text-left p-2">Hành động</th>}
           </tr>
         </thead>
         <tbody>
           {isPending && (
             <tr>
-              <td
-                colSpan={
-                  isSelfServiceOnly || canAddSchedule
-                    ? isSelfServiceOnly
-                      ? 4
-                      : 6
-                    : 5
-                }
-                className="p-3 text-center text-gray-400"
-              >
+              <td colSpan={columnCount} className="p-3 text-center text-gray-400">
                 Đang tải...
               </td>
             </tr>
           )}
           {!isPending && schedules.length === 0 && (
             <tr>
-              <td
-                colSpan={
-                  isSelfServiceOnly || canAddSchedule
-                    ? isSelfServiceOnly
-                      ? 4
-                      : 6
-                    : 5
-                }
-                className="p-3 text-center text-gray-400"
-              >
+              <td colSpan={columnCount} className="p-3 text-center text-gray-400">
                 {isSelfServiceOnly
                   ? "Bạn chưa được xếp lịch làm việc trong tuần này"
                   : "Chưa có lịch làm việc nào trong tuần này"}
@@ -287,7 +272,7 @@ export function ScheduleManager({
                 <td className="p-2">{s.date}</td>
                 <td className="p-2">{s.session?.name ?? "—"}</td>
                 <td className="p-2">{STATUS_LABEL[s.status]}</td>
-                {isSelfServiceOnly && (
+                {isSelfServiceOnly && canCheckIn && (
                   <td className="p-2">
                     {s.status === "assigned" && (
                       <button
@@ -334,16 +319,6 @@ export function ScheduleManager({
             ))}
         </tbody>
       </table>
-
-      {showProposeModal && (
-        <ProposeScheduleModal
-          onClose={() => setShowProposeModal(false)}
-          onCreated={() => {
-            setShowProposeModal(false);
-            refresh(roleId, search);
-          }}
-        />
-      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">

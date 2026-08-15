@@ -60,18 +60,28 @@ export type PendingAppointmentSummary = {
 };
 
 /**
- * Lấy danh sách lịch hẹn trong 1 ngày cụ thể, có thể lọc theo trạng thái
- * và tìm theo tên khách hàng.
+ * Lấy danh sách lịch hẹn trong 1 ngày cụ thể, có thể lọc theo trạng thái,
+ * tìm theo tên khách hàng, hoặc CHỈ lấy lịch hẹn đang gán cho 1 nhân viên
+ * cụ thể (onlyEmployeeId — dùng cho role 4, mỗi người chỉ thấy lịch hẹn
+ * CỦA CHÍNH MÌNH, giống cách onlyEmployeeId hoạt động ở getSchedules).
  */
 export async function getAppointments(params: {
   date: string; // 'YYYY-MM-DD'
   status?: AppointmentStatus;
   search?: string;
+  onlyEmployeeId?: string;
 }): Promise<AppointmentRow[]> {
   const supabase = await createAdminAuthClient();
 
   const dayStart = `${params.date}T00:00:00`;
   const dayEnd = `${params.date}T23:59:59`;
+
+  // Khi lọc theo onlyEmployeeId, đổi embed schedule sang !inner để có thể
+  // filter theo cột của bảng liên kết (schedule.employee_id) — embed kiểu
+  // thường (left join) không lọc được theo cột lồng bên trong đúng cách.
+  const scheduleEmbed = params.onlyEmployeeId
+    ? "schedule:schedules!appointments_schedule_id_fkey!inner"
+    : "schedule:schedules!appointments_schedule_id_fkey";
 
   let query = supabase
     .from("appointments")
@@ -84,9 +94,10 @@ export async function getAppointments(params: {
         id,
         profile:profiles!customers_id_fkey ( fullname, avatar, phone )
       ),
-      schedule:schedules!appointments_schedule_id_fkey (
+      ${scheduleEmbed} (
         id,
         date,
+        employee_id,
         session:sessions ( id, name, start_time, end_time ),
         employee:employees!schedules_employee_id_fkey (
           id,
@@ -101,6 +112,7 @@ export async function getAppointments(params: {
     .order("appointment_date");
 
   if (params.status) query = query.eq("status", params.status);
+  if (params.onlyEmployeeId) query = query.eq("schedule.employee_id", params.onlyEmployeeId);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -119,12 +131,54 @@ export async function getAppointments(params: {
 
 /**
  * Cập nhật trạng thái 1 lịch hẹn (xác nhận, huỷ, hoàn thành, khách không đến)
+ *
+ * Quyền hạn:
+ *  - role 1, 3: sửa được mọi lịch hẹn, mọi trạng thái.
+ *  - role 4 (beautician): CHỈ được sửa lịch hẹn đang gán cho CHÍNH MÌNH
+ *    (so khớp schedule.employee_id với người đang đăng nhập).
+ *  - role khác (2, 5): không được gọi hàm này.
+ *
+ * Đây là lớp kiểm tra ở tầng ứng dụng, nên đi kèm RLS tương ứng trên bảng
+ * `appointments` làm lớp bảo vệ thứ 2 — không thay thế cho nhau (giống
+ * ghi chú ở updateScheduleStatus trong app/admin/schedules/actions.ts).
  */
 export async function updateAppointmentStatus(
   appointmentId: string,
   status: AppointmentStatus,
 ) {
   const supabase = await createAdminAuthClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Chưa đăng nhập");
+
+  const { data: employee, error: employeeError } = await supabase
+    .from("employees")
+    .select("role_id")
+    .eq("id", user.id)
+    .single();
+  if (employeeError || !employee) throw new Error("Không xác định được vai trò người dùng");
+
+  const roleId = employee.role_id;
+  const MANAGER_ROLE_IDS = [1, 3];
+
+  if (!MANAGER_ROLE_IDS.includes(roleId)) {
+    if (roleId !== 4) {
+      throw new Error("Bạn không có quyền cập nhật lịch hẹn");
+    }
+
+    const { data: appointment, error: apptError } = await supabase
+      .from("appointments")
+      .select("schedule:schedules!appointments_schedule_id_fkey(employee_id)")
+      .eq("id", appointmentId)
+      .single();
+    if (apptError || !appointment) throw new Error("Không tìm thấy lịch hẹn");
+
+    const scheduleEmployeeId = (appointment as any).schedule?.employee_id;
+    if (scheduleEmployeeId !== user.id) {
+      throw new Error("Bạn chỉ được cập nhật lịch hẹn đang gán cho chính mình");
+    }
+  }
+
   const { error } = await supabase
     .from("appointments")
     .update({ status })
@@ -164,9 +218,6 @@ export async function getAvailableEmployeesForAppointment(
 
   const apptStart = new Date(appointment.appointment_date);
 
-  // Lấy ngày & giờ theo giờ Việt Nam — KHÔNG dùng .toTimeString()/.split("T")[0]
-  // trực tiếp vì appointment_date là timestamptz: nếu server chạy ở timezone
-  // khác VN (vd UTC trên Vercel), 2 cách trên sẽ trả về sai giờ/sai ngày.
   const vnParts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Ho_Chi_Minh",
     year: "numeric",
@@ -231,7 +282,6 @@ export async function getAvailableEmployeesForAppointment(
   if (empErr) throw new Error(empErr.message);
   if (!employees || employees.length === 0) return [];
 
-  // Lịch làm việc đúng ngày, đúng ca — mỗi nhân viên chỉ có 1 dòng/ca/ngày
   const { data: daySchedules, error: schedErr } = await supabase
     .from("schedules")
     .select("id, employee_id")
@@ -247,8 +297,6 @@ export async function getAvailableEmployeesForAppointment(
 
   const scheduleIds = daySchedules.map((s) => s.id);
 
-  // Lấy TẤT CẢ lịch hẹn khác (chưa huỷ/no_show) đang gán vào các schedule này,
-  // để kiểm tra trùng giờ — khác với trước đây (chỉ cần "có tồn tại" là loại luôn)
   const { data: otherAppointments, error: otherErr } = await supabase
     .from("appointments")
     .select(
@@ -281,7 +329,7 @@ export async function getAvailableEmployeesForAppointment(
 
   const options: AvailableEmployeeOption[] = [];
   for (const sched of daySchedules) {
-    if (busyScheduleIds.has(sched.id)) continue; // Bận đúng giờ này
+    if (busyScheduleIds.has(sched.id)) continue;
     const emp = employees.find((e) => e.id === sched.employee_id);
     if (!emp) continue;
     options.push({
@@ -298,12 +346,29 @@ export async function getAvailableEmployeesForAppointment(
 /**
  * Gán 1 lịch hẹn cho nhân viên đã chọn (đổi schedule_id) và tự động chuyển
  * trạng thái sang 'confirmed'.
+ *
+ * Quyền hạn: chỉ role 1, 3 (canManage("appointments")) — kiểm tra ở đây để
+ * chặn cả khi ai đó gọi thẳng action bỏ qua UI (nút "Gán nhân viên" đã ẩn
+ * với role 4 ở component, nhưng đó chỉ là lớp UI, không đủ an toàn).
  */
 export async function assignAppointmentEmployee(
   appointmentId: string,
   scheduleId: string,
 ) {
   const supabase = await createAdminAuthClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Chưa đăng nhập");
+
+  const { data: employee, error: employeeError } = await supabase
+    .from("employees")
+    .select("role_id")
+    .eq("id", user.id)
+    .single();
+  if (employeeError || !employee || ![1, 3].includes(employee.role_id)) {
+    throw new Error("Bạn không có quyền gán nhân viên cho lịch hẹn");
+  }
+
   const { error } = await supabase
     .from("appointments")
     .update({ schedule_id: scheduleId, status: "confirmed" })

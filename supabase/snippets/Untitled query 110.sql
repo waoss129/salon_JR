@@ -1,5 +1,8 @@
-CREATE POLICY "Admin có toàn quyền với bảng profiles" ON profiles
-FOR ALL TO authenticated
-USING (
-  (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
+alter policy "quanly_select_promotions"
+on "public"."promotions"
+to authenticated
+using (
+  (EXISTS ( SELECT 1
+   FROM employees e
+   WHERE ((e.id = auth.uid()) AND (e.role_id = ANY (ARRAY[(1)::bigint, (2)::bigint, (3)::bigint, (5)::bigint])))))
 );

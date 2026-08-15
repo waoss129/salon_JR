@@ -2,6 +2,7 @@
 
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireView, requireManage } from "@/lib/supabase/admin-guard";
 
 // ============================================================
 // TYPES
@@ -57,6 +58,10 @@ export async function getPromotions(
   data: PromotionListItem[];
   error: string | null;
 }> {
+  // Xem trang khuyến mãi: role 1, 2, 3, 5 (xem PERMISSIONS.promotions.view
+  // trong lib/supabase/permissions.ts). Role 4 không được vào trang này.
+  await requireView("promotions");
+
   const supabase = await createAdminAuthClient();
 
   let query = supabase
@@ -117,6 +122,9 @@ export async function getPromotions(
 export async function getPromotionDetail(
   id: string,
 ): Promise<{ data: PromotionDetail | null; error: string | null }> {
+  // Chỉ dùng để mở form SỬA -> yêu cầu quyền manage, không phải view.
+  await requireManage("promotions");
+
   const supabase = await createAdminAuthClient();
 
   const { data, error } = await supabase
@@ -168,11 +176,14 @@ export async function getPromotionDetail(
   };
 }
 
-// Danh sách dịch vụ active, dùng cho phần chọn "áp dụng cho dịch vụ cụ thể".
+// Danh sách dịch vụ active, dùng cho phần chọn "áp dụng cho dịch vụ cụ thể"
+// trong form thêm/sửa -> chỉ cần khi có quyền manage.
 export async function getSelectableServices(): Promise<{
   data: SelectableService[];
   error: string | null;
 }> {
+  await requireManage("promotions");
+
   const supabase = await createAdminAuthClient();
 
   const { data, error } = await supabase
@@ -192,6 +203,13 @@ export async function getSelectableServices(): Promise<{
 // ============================================================
 // TỰ ĐỘNG ÁP DỤNG KHUYẾN MÃI KHI TẠO HÓA ĐƠN
 // ============================================================
+//
+// LƯU Ý: hàm dưới đây CỐ TÌNH không có requireView/requireManage. Đây là
+// hàm hệ thống tự gọi khi tạo hóa đơn (BillFormModal) để tìm khuyến mãi tốt
+// nhất áp dụng tự động — không phải hành động người dùng chủ động "quản lý
+// khuyến mãi", nên không đi qua permission của trang khuyến mãi. Việc ai
+// được tạo hóa đơn đã được kiểm soát riêng ở phía tạo hóa đơn (PERMISSIONS.
+// bills), không phải ở đây.
 
 export type PromotionEligibilityInput = {
   customerId: string;
@@ -317,6 +335,8 @@ export async function getBestPromotionForBill(
 export async function createPromotion(
   payload: PromotionPayload,
 ): Promise<{ data?: { id: string }; error: string | null }> {
+  await requireManage("promotions");
+
   const supabase = await createAdminAuthClient();
 
   const { data: promotion, error: promoError } = await supabase
@@ -368,6 +388,8 @@ export async function updatePromotion(
   id: string,
   payload: PromotionPayload,
 ): Promise<{ error: string | null }> {
+  await requireManage("promotions");
+
   const supabase = await createAdminAuthClient();
 
   const { error: promoError } = await supabase
@@ -427,6 +449,9 @@ export async function togglePromotionActive(
   id: string,
   isActive: boolean,
 ): Promise<{ error: string | null }> {
+  // Bật/tắt cũng là hành động "sửa" -> cần quyền manage, không phải chỉ view.
+  await requireManage("promotions");
+
   const supabase = await createAdminAuthClient();
 
   const { error } = await supabase
@@ -450,6 +475,8 @@ export async function togglePromotionActive(
 export async function deletePromotion(
   id: string,
 ): Promise<{ error: string | null }> {
+  await requireManage("promotions");
+
   const supabase = await createAdminAuthClient();
 
   // promotion_services sẽ tự xóa theo nếu bạn đã set ON DELETE CASCADE cho FK đó.

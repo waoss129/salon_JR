@@ -64,6 +64,10 @@ async function requireScheduleManager(): Promise<number> {
 }
 
 export async function getActiveOrLatestWeek(): Promise<ScheduleWeek | null> {
+  // Trang thiết lập ca chỉ dành cho role 1, 2, 3 — trước đây hàm này không
+  // có dòng chặn, ai gọi cũng lấy được thông tin tuần hiện tại.
+  await requireScheduleManager();
+
   const supabase = await createAdminAuthClient();
   const { data, error } = await supabase
     .from("schedule_weeks")
@@ -95,6 +99,11 @@ export async function createScheduleWeek(): Promise<ScheduleWeek> {
 }
 
 export async function getWeekSetup(weekId: string) {
+  // QUAN TRỌNG: trả về cấu hình slot/ngưỡng tối thiểu của TOÀN BỘ tuần —
+  // đây là công cụ quản lý, không phải dữ liệu cá nhân, chỉ role 1,2,3
+  // được xem. Trước đây hàm này không có dòng chặn.
+  await requireScheduleManager();
+
   const supabase = await createAdminAuthClient();
 
   // 3 query độc lập, không cái nào cần dữ liệu của cái kia — gộp song song

@@ -43,7 +43,14 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleDateString("vi-VN");
 }
 
-export default function PromotionList() {
+export default function PromotionList({
+  canManage,
+}: {
+  // Người đang xem có được thêm/sửa/xóa/bật-tắt khuyến mãi hay không —
+  // vd: role 5 (lễ tân) và role 2 (CEO) chỉ xem, phải false. Mặc định
+  // false để an toàn (fail-closed) nếu quên truyền.
+  canManage?: boolean;
+}) {
   const [promotions, setPromotions] = useState<PromotionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -103,15 +110,17 @@ export default function PromotionList() {
           />
         </div>
 
-        <button
-          onClick={() => {
-            setEditingId(undefined);
-            setShowModal(true);
-          }}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          + Thêm mới
-        </button>
+        {canManage && (
+          <button
+            onClick={() => {
+              setEditingId(undefined);
+              setShowModal(true);
+            }}
+            className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          >
+            + Thêm mới
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200">
@@ -136,21 +145,29 @@ export default function PromotionList() {
               <th className="px-4 py-3 text-left font-medium text-gray-500">
                 Trạng thái
               </th>
-              <th className="px-4 py-3 text-center font-medium text-gray-500">
-                Hành động
-              </th>
+              {canManage && (
+                <th className="px-4 py-3 text-center font-medium text-gray-500">
+                  Hành động
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                <td
+                  colSpan={canManage ? 7 : 6}
+                  className="px-4 py-8 text-center text-gray-400"
+                >
                   Đang tải...
                 </td>
               </tr>
             ) : promotions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                <td
+                  colSpan={canManage ? 7 : 6}
+                  className="px-4 py-8 text-center text-gray-400"
+                >
                   Chưa có khuyến mãi nào.
                 </td>
               </tr>
@@ -169,36 +186,52 @@ export default function PromotionList() {
                     {formatDate(p.start_date)} → {formatDate(p.end_date)}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleToggleActive(p)}
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                        p.is_active
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {p.is_active ? "Đang hoạt động" : "Ngừng hoạt động"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-3">
+                    {canManage ? (
                       <button
-                        onClick={() => {
-                          setEditingId(p.id);
-                          setShowModal(true);
-                        }}
-                        className="text-sm font-medium text-blue-600 hover:underline"
+                        onClick={() => handleToggleActive(p)}
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          p.is_active
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
                       >
-                        Sửa
+                        {p.is_active ? "Đang hoạt động" : "Ngừng hoạt động"}
                       </button>
-                      <button
-                        onClick={() => handleDelete(p)}
-                        className="text-sm font-medium text-red-500 hover:underline"
+                    ) : (
+                      // Không có quyền quản lý -> chỉ hiện nhãn tĩnh, không
+                      // cho bật/tắt.
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          p.is_active
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
                       >
-                        Xóa
-                      </button>
-                    </div>
+                        {p.is_active ? "Đang hoạt động" : "Ngừng hoạt động"}
+                      </span>
+                    )}
                   </td>
+                  {canManage && (
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => {
+                            setEditingId(p.id);
+                            setShowModal(true);
+                          }}
+                          className="text-sm font-medium text-blue-600 hover:underline"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(p)}
+                          className="text-sm font-medium text-red-500 hover:underline"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -206,7 +239,7 @@ export default function PromotionList() {
         </table>
       </div>
 
-      {showModal && (
+      {canManage && showModal && (
         <PromotionModal
           promotionId={editingId}
           onClose={() => setShowModal(false)}

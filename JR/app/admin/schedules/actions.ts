@@ -9,6 +9,11 @@ import { revalidatePath } from "next/cache";
 // Nếu sau này danh sách role thay đổi, chỉ cần sửa mảng ở đây.
 const EMPLOYEE_ROLE_IDS = [3, 4, 5];
 
+// Role được phép TỰ check-in / hoàn thành ca của CHÍNH MÌNH — khớp với
+// canCheckInOwnSchedule() trong lib/supabase/permissions.ts. Giữ danh sách
+// này ở 1 chỗ để không bị lệch giữa 2 file khi sau này cần đổi.
+const SELF_CHECKIN_ROLE_IDS = [4, 5];
+
 export type ScheduleStatus =
   | "assigned" // Admin đã xếp ca
   | "checked_in" // Nhân viên đã check-in
@@ -126,7 +131,7 @@ export async function getEmployees(roleId?: number): Promise<EmployeeOption[]> {
 /**
  * Lấy lịch làm việc trong khoảng ngày (dùng cho lịch tuần), có thể lọc theo
  * vai trò, tìm theo tên nhân viên, hoặc CHỈ lấy lịch của 1 nhân viên cụ thể
- * (dùng cho role 4 — mỗi người chỉ được xem lịch của chính mình).
+ * (dùng cho role 4 và role 5 — mỗi người chỉ được xem lịch của chính mình).
  */
 export async function getSchedules(params: {
   weekStart: string;
@@ -241,14 +246,16 @@ export async function createSchedules(input: {
 
 /**
  * Cập nhật trạng thái 1 lịch làm việc (vd: huỷ ca, đánh dấu vắng mặt,
- * hoặc beautician tự check-in/check-out ca của chính mình).
+ * hoặc beautician/lễ tân tự check-in/check-out ca của chính mình).
  *
  * Quyền hạn:
  *  - role 1, 2, 3: sửa được mọi lịch, mọi trạng thái.
- *  - role 4 (beautician): CHỈ được sửa lịch có employee_id = chính mình,
- *    và chỉ được chuyển sang 'checked_in' hoặc 'completed' (không được tự
- *    đánh dấu vắng mặt/huỷ ca của mình).
- *  - role khác (vd 5): không được gọi hàm này.
+ *  - role 4 (beautician) VÀ role 5 (lễ tân): CHỈ được sửa lịch có
+ *    employee_id = chính mình, và chỉ được chuyển sang 'checked_in' hoặc
+ *    'completed' (không được tự đánh dấu vắng mặt/huỷ ca của mình).
+ *    Khớp với canCheckInOwnSchedule() trong lib/supabase/permissions.ts —
+ *    SELF_CHECKIN_ROLE_IDS ở đầu file này PHẢI luôn giống danh sách role
+ *    trong hàm đó.
  *
  * Lưu ý: đây là lớp kiểm tra ở tầng ứng dụng — nên đi kèm với RLS tương ứng
  * trên bảng `schedules` (xem migration admin_rls_policies.sql) làm lớp bảo
@@ -279,11 +286,11 @@ export async function updateScheduleStatus(
   const MANAGER_ROLE_IDS = [1, 2, 3];
 
   if (!MANAGER_ROLE_IDS.includes(roleId)) {
-    if (roleId !== 4) {
+    if (!SELF_CHECKIN_ROLE_IDS.includes(roleId)) {
       throw new Error("Bạn không có quyền cập nhật lịch làm việc");
     }
 
-    // Role 4: chỉ được sửa đúng lịch của chính mình.
+    // Role 4, 5: chỉ được sửa đúng lịch của chính mình.
     const { data: schedule, error: scheduleError } = await supabase
       .from("schedules")
       .select("employee_id")
