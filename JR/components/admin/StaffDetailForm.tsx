@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStaff } from "@/app/admin/staff/actions";
-import { ROLE } from "@/lib/supabase/permissions";
+import { ROLE, canManage } from "@/lib/supabase/permissions";
 
 export default function StaffDetailForm({
   data,
@@ -20,6 +20,13 @@ export default function StaffDetailForm({
   // Chỉ chuyên viên (Beautician, role_id = 4) mới cần "Cấp bậc" — quản lý
   // (3) và lễ tân (5) không có khái niệm này.
   const showLevel = data.role_id === ROLE.BEAUTICIAN;
+
+  // Người đang xem trang có được sửa hồ sơ nhân viên hay không — vd: CEO
+  // (role 2) chỉ được xem trang nhân viên, không được sửa (xem
+  // PERMISSIONS.staff.manage trong lib/supabase/permissions.ts). Server
+  // action updateStaff() cũng tự chặn qua requireManage("staff"), đây chỉ
+  // là lớp UI để không hiện form có thể bấm Lưu mà thực ra sẽ báo lỗi.
+  const canEdit = canManage(viewerRoleId, "staff");
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -44,6 +51,11 @@ export default function StaffDetailForm({
       action={(formData) => startTransition(() => handleSubmit(formData))}
       className="space-y-6 bg-white p-8 rounded-2xl shadow-sm border border-slate-200"
     >
+      {!canEdit && (
+        <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          Bạn chỉ có quyền xem hồ sơ nhân viên này, không thể chỉnh sửa.
+        </p>
+      )}
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
           {error}
@@ -62,18 +74,20 @@ export default function StaffDetailForm({
           className="w-24 h-24 rounded-full border object-cover"
           alt="Avatar"
         />
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1">
-            Ảnh đại diện
-          </label>
-          <input
-            type="file"
-            name="avatar"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="text-sm"
-          />
-        </div>
+        {canEdit && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Ảnh đại diện
+            </label>
+            <input
+              type="file"
+              name="avatar"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="text-sm"
+            />
+          </div>
+        )}
       </div>
 
       {/* Thông tin cá nhân */}
@@ -90,7 +104,8 @@ export default function StaffDetailForm({
               name="fullname"
               defaultValue={data.profiles?.fullname}
               placeholder="Họ và tên"
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              disabled={!canEdit}
+              className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
 
@@ -117,6 +132,7 @@ export default function StaffDetailForm({
                   name="gender"
                   value="male"
                   defaultChecked={data.profiles?.gender === "male"}
+                  disabled={!canEdit}
                 />
                 Nam
               </label>
@@ -126,6 +142,7 @@ export default function StaffDetailForm({
                   name="gender"
                   value="female"
                   defaultChecked={data.profiles?.gender === "female"}
+                  disabled={!canEdit}
                 />
                 Nữ
               </label>
@@ -140,7 +157,8 @@ export default function StaffDetailForm({
               type="date"
               name="dob"
               defaultValue={data.profiles?.dob}
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              disabled={!canEdit}
+              className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
 
@@ -152,7 +170,8 @@ export default function StaffDetailForm({
               name="phone"
               defaultValue={data.profiles?.phone}
               placeholder="Số điện thoại"
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              disabled={!canEdit}
+              className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
 
@@ -164,7 +183,8 @@ export default function StaffDetailForm({
               name="address"
               defaultValue={data.profiles?.address}
               placeholder="Địa chỉ"
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              disabled={!canEdit}
+              className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
         </div>
@@ -186,7 +206,8 @@ export default function StaffDetailForm({
               type="date"
               name="joined_at"
               defaultValue={data.joined_at}
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              disabled={!canEdit}
+              className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
           <div>
@@ -197,7 +218,8 @@ export default function StaffDetailForm({
               name="certificate_name"
               defaultValue={data.certificate_name}
               placeholder="Chứng nhận"
-              className="border rounded-lg px-3 py-2 w-full text-sm"
+              disabled={!canEdit}
+              className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
           {showLevel && (
@@ -209,7 +231,8 @@ export default function StaffDetailForm({
                 name="level"
                 defaultValue={data.level}
                 placeholder="Cấp bậc"
-                className="border rounded-lg px-3 py-2 w-full text-sm"
+                disabled={!canEdit}
+                className="border rounded-lg px-3 py-2 w-full text-sm disabled:bg-slate-50 disabled:text-slate-500"
               />
             </div>
           )}
@@ -226,7 +249,8 @@ export default function StaffDetailForm({
             step={100000}
             defaultValue={data.base_salary ?? 0}
             placeholder="10000000"
-            className="border rounded-lg px-3 py-2 w-full max-w-xs text-sm"
+            disabled={!canEdit}
+            className="border rounded-lg px-3 py-2 w-full max-w-xs text-sm disabled:bg-slate-50 disabled:text-slate-500"
           />
           <p className="text-xs text-slate-400 mt-1">
             Dùng để tính Thống kê lương — không hiển thị cho nhân viên khác
@@ -235,13 +259,15 @@ export default function StaffDetailForm({
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="bg-black text-white px-8 py-3 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition"
-      >
-        {isPending ? "Đang lưu..." : "Lưu thay đổi"}
-      </button>
+      {canEdit && (
+        <button
+          type="submit"
+          disabled={isPending}
+          className="bg-black text-white px-8 py-3 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition"
+        >
+          {isPending ? "Đang lưu..." : "Lưu thay đổi"}
+        </button>
+      )}
     </form>
   );
 }

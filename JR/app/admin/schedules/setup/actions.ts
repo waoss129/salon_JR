@@ -30,14 +30,23 @@ function computeNextWeekRange() {
   const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   thisMonday.setDate(thisMonday.getDate() - dow + 1);
 
-  const nextMonday = new Date(thisMonday);
+  let nextMonday = new Date(thisMonday);
   nextMonday.setDate(thisMonday.getDate() + 7);
-  const nextSunday = new Date(nextMonday);
-  nextSunday.setDate(nextMonday.getDate() + 6);
 
-  const thisSaturday = new Date(thisMonday);
+  let thisSaturday = new Date(thisMonday);
   thisSaturday.setDate(thisMonday.getDate() + 5);
   thisSaturday.setHours(21, 0, 0, 0);
+
+  // Nếu hạn chót tính ra đã trôi qua (tạo tuần vào tối Thứ 7 sau 21h, hoặc vào
+  // Chủ nhật) — đẩy toàn bộ sang thêm 1 tuần nữa, để hạn đăng ký luôn nằm
+  // trong tương lai. Không làm vậy thì tuần vừa tạo sẽ "hết hạn" ngay lập tức.
+  if (thisSaturday.getTime() <= now.getTime()) {
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    thisSaturday.setDate(thisSaturday.getDate() + 7);
+  }
+
+  const nextSunday = new Date(nextMonday);
+  nextSunday.setDate(nextMonday.getDate() + 6);
 
   return { weekStart: toIso(nextMonday), weekEnd: toIso(nextSunday), deadlineIso: thisSaturday.toISOString() };
 }
@@ -88,29 +97,22 @@ export async function createScheduleWeek(): Promise<ScheduleWeek> {
 export async function getWeekSetup(weekId: string) {
   const supabase = await createAdminAuthClient();
 
-  const { data: capacity, error: capErr } = await supabase
-    .from("shift_capacity")
-    .select("session_id, date, slot_target")
-    .eq("week_id", weekId);
-  if (capErr) throw new Error(capErr.message);
+  // 3 query độc lập, không cái nào cần dữ liệu của cái kia — gộp song song
+  // thay vì đợi tuần tự từng cái (trước đây tốn 3 round-trip nối tiếp nhau).
+  const [capacityRes, requirementsRes, capacityStatusRes] = await Promise.all([
+    supabase.from("shift_capacity").select("session_id, date, slot_target").eq("week_id", weekId),
+    supabase.from("role_day_requirements").select("date, role_id, min_count").eq("week_id", weekId),
+    supabase.from("shift_capacity_status").select("session_id, date, current_count").eq("week_id", weekId),
+  ]);
 
-  const { data: requirements, error: reqErr } = await supabase
-    .from("role_day_requirements")
-    .select("date, role_id, min_count")
-    .eq("week_id", weekId);
-  if (reqErr) throw new Error(reqErr.message);
-
-  // Số người ĐÃ đăng ký thật cho từng ca — cần để biết giảm slot tới đâu là an toàn.
-  const { data: capacityStatus, error: statusErr } = await supabase
-    .from("shift_capacity_status")
-    .select("session_id, date, current_count")
-    .eq("week_id", weekId);
-  if (statusErr) throw new Error(statusErr.message);
+  if (capacityRes.error) throw new Error(capacityRes.error.message);
+  if (requirementsRes.error) throw new Error(requirementsRes.error.message);
+  if (capacityStatusRes.error) throw new Error(capacityStatusRes.error.message);
 
   return {
-    capacity: (capacity ?? []) as CapacityRow[],
-    requirements: (requirements ?? []) as RequirementRow[],
-    capacityStatus: (capacityStatus ?? []) as CapacityStatusRow[],
+    capacity: (capacityRes.data ?? []) as CapacityRow[],
+    requirements: (requirementsRes.data ?? []) as RequirementRow[],
+    capacityStatus: (capacityStatusRes.data ?? []) as CapacityStatusRow[],
   };
 }
 
@@ -126,9 +128,6 @@ export async function setShiftCapacity(input: { weekId: string; sessionId: numbe
     .maybeSingle();
 
   if (existing) {
-    // Cho phép giảm — chỉ chặn nếu giảm xuống dưới số người ĐÃ đăng ký thật
-    // (không phải dưới slot_target cũ). Trigger DB cũng chặn lại lần cuối,
-    // đây là kiểm tra sớm để báo lỗi thân thiện hơn.
     if (input.slotTarget < existing.slot_target) {
       const { count, error: countErr } = await supabase
         .from("shift_registrations")

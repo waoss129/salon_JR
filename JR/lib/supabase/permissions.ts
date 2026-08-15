@@ -28,7 +28,7 @@ export const PERMISSIONS: Record<
   dashboard: { view: [1, 2, 3, 4, 5] },
   accounts: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3, 4, 5] },
 
-  staff: { view: [1, 2, 3], manage: [1, 2, 3] },
+  staff: { view: [1, 2, 3], manage: [1, 3] },
 
   // Role admin, ceo, quản lý, lễ tân được toàn quyền khách hàng.
   customers: { view: [1, 3, 5], manage: [1, 3, 5] },

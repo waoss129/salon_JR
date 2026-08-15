@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 const CHUYEN_VIEN_ROLE_ID = 4;
 const SELF_REGISTER_ROLE_IDS = [3, 4, 5];
+const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 function isWeekend(dateStr: string) {
   const day = new Date(dateStr).getDay();
@@ -16,12 +17,7 @@ async function requireSelfRegisterRole(): Promise<{ userId: string; roleId: numb
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Bạn cần đăng nhập lại.");
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("role_id")
-    .eq("id", user.id)
-    .single();
-
+  const { data: employee } = await supabase.from("employees").select("role_id").eq("id", user.id).single();
   if (!employee || !SELF_REGISTER_ROLE_IDS.includes(employee.role_id)) {
     throw new Error("Bạn không có quyền đăng ký ca làm việc.");
   }
@@ -44,18 +40,15 @@ export async function getActiveWeek() {
 export async function getWeekBoard(weekId: string) {
   const supabase = await createAdminAuthClient();
 
-  const { data: sessions, error: sessionsErr } = await supabase
-    .from("sessions")
-    .select("id, name, start_time, end_time, shift_type, day_of_week");
-  if (sessionsErr) throw new Error(sessionsErr.message);
+  const [sessionsRes, capacityRes] = await Promise.all([
+    supabase.from("sessions").select("id, name, start_time, end_time, shift_type, day_of_week"),
+    supabase.from("shift_capacity_status").select("*").eq("week_id", weekId),
+  ]);
 
-  const { data: capacityStatus, error: capErr } = await supabase
-    .from("shift_capacity_status")
-    .select("*")
-    .eq("week_id", weekId);
-  if (capErr) throw new Error(capErr.message);
+  if (sessionsRes.error) throw new Error(sessionsRes.error.message);
+  if (capacityRes.error) throw new Error(capacityRes.error.message);
 
-  return { sessions: sessions ?? [], capacityStatus: capacityStatus ?? [] };
+  return { sessions: sessionsRes.data ?? [], capacityStatus: capacityRes.data ?? [] };
 }
 
 export async function getMyRegistrations(weekId: string) {
@@ -74,10 +67,6 @@ export async function getMyRegistrations(weekId: string) {
 
 export async function getMyRoleInfo() {
   const { roleId } = await requireSelfRegisterRole();
-  // Đây là cờ "thuộc nhóm bị giới hạn slot" ở MỨC VAI TRÒ, chỉ dùng để UI quyết định
-  // có cần hiển thị số liệu capacity không. Quyết định THẬT (có giới hạn cho ĐÚNG
-  // ca này hay không) luôn được tính lại trong registerShift() ở dưới, theo cả
-  // role LẪN ngày — cuối tuần luôn tự do dù là chuyên viên.
   return { roleId, isSlotCapped: roleId === CHUYEN_VIEN_ROLE_ID };
 }
 
@@ -98,8 +87,6 @@ export async function registerShift(params: { weekId: string; sessionId: number;
     throw new Error("DEADLINE_PASSED");
   }
 
-  // Quy tắc: chuyên viên bị giới hạn slot CHỈ vào ngày thường (T2-T6).
-  // Cuối tuần (T7, CN) mọi vai trò đều đăng ký tự do, không kiểm tra slot.
   const isSlotCapped = roleId === CHUYEN_VIEN_ROLE_ID && !isWeekend(params.date);
 
   if (isSlotCapped) {
@@ -109,7 +96,15 @@ export async function registerShift(params: { weekId: string; sessionId: number;
       p_date: params.date,
       p_week_id: params.weekId,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Trùng do bấm nhanh 2 lần / request gửi lặp — kết quả mong muốn (đã có
+      // đăng ký cho đúng ca này) đã đạt được, không cần báo lỗi cho người dùng.
+      if (error.code === POSTGRES_UNIQUE_VIOLATION || error.message?.includes("shift_registrations_unique")) {
+        revalidatePath("/admin/schedules/register");
+        return;
+      }
+      throw new Error(error.message);
+    }
   } else {
     const { error } = await supabase.from("shift_registrations").insert({
       week_id: params.weekId,
@@ -118,7 +113,13 @@ export async function registerShift(params: { weekId: string; sessionId: number;
       date: params.date,
       status: "registered",
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === POSTGRES_UNIQUE_VIOLATION || error.message?.includes("shift_registrations_unique")) {
+        revalidatePath("/admin/schedules/register");
+        return;
+      }
+      throw new Error(error.message);
+    }
   }
 
   revalidatePath("/admin/schedules/register");

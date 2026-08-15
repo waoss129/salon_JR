@@ -19,9 +19,14 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function StaffListClient({
   initialStaff,
+  canManage,
 }: {
   initialStaff: any[];
   roleId: number;
+  // Người đang xem trang có quyền sửa (đổi trạng thái) nhân viên hay
+  // không — vd: CEO (role 2) chỉ xem, phải false. Nếu không truyền, mặc
+  // định false để an toàn (fail-closed).
+  canManage?: boolean;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -100,18 +105,30 @@ export default function StaffListClient({
               <td className="p-2">{staff.profiles?.phone || "—"}</td>
               <td className="p-2">{staff.profiles?.email || "—"}</td>
               <td className="p-2">
-                <select
-                  defaultValue={staff.status}
-                  disabled={updatingId === staff.id}
-                  onChange={(e) => handleStatusChange(staff.id, e.target.value)}
-                  className={`text-xs px-2 py-1 rounded border-0 font-medium disabled:opacity-50 ${STATUS_COLOR[staff.status]}`}
-                >
-                  {Object.entries(STATUS_LABEL).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                {canManage ? (
+                  <select
+                    defaultValue={staff.status}
+                    disabled={updatingId === staff.id}
+                    onChange={(e) =>
+                      handleStatusChange(staff.id, e.target.value)
+                    }
+                    className={`text-xs px-2 py-1 rounded border-0 font-medium disabled:opacity-50 ${STATUS_COLOR[staff.status]}`}
+                  >
+                    {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  // Không có quyền quản lý (vd: CEO) -> chỉ hiện nhãn
+                  // trạng thái tĩnh, không cho đổi.
+                  <span
+                    className={`text-xs px-2 py-1 rounded font-medium ${STATUS_COLOR[staff.status]}`}
+                  >
+                    {STATUS_LABEL[staff.status]}
+                  </span>
+                )}
               </td>
               <td className="p-2">
                 <div className="flex gap-2">

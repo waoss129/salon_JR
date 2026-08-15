@@ -43,11 +43,36 @@ function isWeekend(dateStr: string) {
   return day === 0 || day === 6;
 }
 
-export default function SetupBoard({ week, sessions, roles, capacity, requirements, capacityStatus }: Props) {
+function CreateWeekButton({ label }: { label: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+
+  function handleCreateWeek() {
+    setErrorMsg(null);
+    startTransition(async () => {
+      try {
+        await createScheduleWeek();
+        router.refresh();
+      } catch (err: any) {
+        setErrorMsg(err?.message ?? "Không thể tạo tuần mới.");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      {errorMsg && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{errorMsg}</div>}
+      <button disabled={isPending} onClick={handleCreateWeek} className="rounded-md bg-neutral-900 text-white text-sm px-4 py-2 disabled:opacity-50">
+        {label}
+      </button>
+    </div>
+  );
+}
+
+export default function SetupBoard({ week, sessions, roles, capacity, requirements, capacityStatus }: Props) {
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [capacityValues, setCapacityValues] = useState<Record<string, number>>(() => {
     const m: Record<string, number> = {};
@@ -72,21 +97,6 @@ export default function SetupBoard({ week, sessions, roles, capacity, requiremen
   const weekendDates = dates.filter(isWeekend);
   const thresholdRoles = roles.filter((r) => THRESHOLD_ROLE_IDS.includes(r.id));
 
-  function handleCreateWeek() {
-    setErrorMsg(null);
-    setCreating(true);
-    startTransition(async () => {
-      try {
-        await createScheduleWeek();
-        router.refresh();
-      } catch (err: any) {
-        setErrorMsg(err?.message ?? "Không thể tạo tuần mới.");
-      } finally {
-        setCreating(false);
-      }
-    });
-  }
-
   function handleCapacityBlur(sessionId: number, date: string, value: string) {
     const key = `${sessionId}_${date}`;
     const parsed = parseInt(value, 10);
@@ -95,8 +105,6 @@ export default function SetupBoard({ week, sessions, roles, capacity, requiremen
     const previous = capacityValues[key] ?? 0;
     const registeredCount = registeredMap[key] ?? 0;
 
-    // Chỉ chặn nếu giảm xuống dưới số người ĐÃ đăng ký thật — không còn chặn
-    // giảm nói chung nữa. Ví dụ: đang 5 slot, mới 2 người đăng ký, giảm về 3 là hợp lệ.
     if (parsed < registeredCount) {
       setErrorMsg(`Không thể giảm xuống dưới ${registeredCount} — đang có ${registeredCount} người đã đăng ký ca này.`);
       setCapacityValues((s) => ({ ...s, [key]: previous }));
@@ -131,14 +139,26 @@ export default function SetupBoard({ week, sessions, roles, capacity, requiremen
     });
   }
 
+  // Trường hợp 1: chưa từng có tuần nào.
   if (!week) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-neutral-500">Chưa có tuần nào được thiết lập cho lịch đăng ký tiếp theo.</p>
-        {errorMsg && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{errorMsg}</div>}
-        <button disabled={creating} onClick={handleCreateWeek} className="rounded-md bg-neutral-900 text-white text-sm px-4 py-2 disabled:opacity-50">
-          Tạo tuần đăng ký mới
-        </button>
+        <CreateWeekButton label="Tạo tuần đăng ký mới" />
+      </div>
+    );
+  }
+
+  // Trường hợp 2: tuần gần nhất ĐÃ CHỐT — đây là chỗ bị thiếu trước đó, khiến
+  // bạn kẹt không tạo được tuần kế tiếp. Hiện tóm tắt tuần cũ (chỉ để xem lại)
+  // + nút tạo tuần mới ngay bên dưới.
+  if (week.status === "confirmed") {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-md bg-neutral-100 px-4 py-2 text-sm text-neutral-600">
+          Tuần gần nhất ({week.week_start} — {week.week_end}) đã được chốt lịch. Tạo tuần mới để tiếp tục nhận đăng ký.
+        </div>
+        <CreateWeekButton label="Tạo tuần đăng ký mới" />
       </div>
     );
   }

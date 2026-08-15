@@ -32,7 +32,7 @@ type Props = {
   sessions: Session[];
   capacityStatus: CapacityStatus[];
   myRegistrations: MyRegistration[];
-  isSlotCapped: boolean; // true nếu vai trò là chuyên viên (áp dụng ngày thường)
+  isSlotCapped: boolean;
 };
 
 const WEEKDAY_LABEL = ["", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
@@ -53,7 +53,6 @@ function isWeekend(dateStr: string) {
 
 export default function RegisterBoard({ week, sessions, capacityStatus, myRegistrations, isSlotCapped }: Props) {
   const [isPending, startTransition] = useTransition();
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const dates = useMemo(() => getWeekDates(week.week_start), [week.week_start]);
@@ -75,9 +74,7 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
   const weekendCount = myRegistrations.filter((r) => isWeekend(r.date)).length;
 
   function handleRegister(sessionId: number, date: string) {
-    const key = `${sessionId}_${date}`;
     setErrorMsg(null);
-    setPendingKey(key);
     startTransition(async () => {
       try {
         await registerShift({ weekId: week.id, sessionId, date });
@@ -86,22 +83,17 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
         if (code.includes("SLOT_FULL")) setErrorMsg("Ca này vừa đầy, vui lòng chọn ca khác.");
         else if (code.includes("DEADLINE_PASSED")) setErrorMsg("Đã quá hạn đăng ký.");
         else setErrorMsg("Có lỗi xảy ra, vui lòng thử lại.");
-      } finally {
-        setPendingKey(null);
       }
     });
   }
 
   function handleCancel(registrationId: string) {
     setErrorMsg(null);
-    setPendingKey(registrationId);
     startTransition(async () => {
       try {
         await cancelShift(registrationId);
       } catch {
         setErrorMsg("Không thể hủy đăng ký, vui lòng thử lại.");
-      } finally {
-        setPendingKey(null);
       }
     });
   }
@@ -129,12 +121,14 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
       )}
       {errorMsg && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{errorMsg}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+      {/* Khóa TOÀN BỘ lưới trong lúc đang xử lý 1 request (không chỉ ô đang bấm) —
+          tránh bấm chồng 2 ca gần nhau khi request trước chưa kịp cập nhật UI,
+          nguyên nhân gây lỗi "duplicate key" trước đó. */}
+      <div className={`grid grid-cols-1 md:grid-cols-7 gap-3 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
         {dates.map((date) => {
           const dow = new Date(date).getDay() === 0 ? 7 : new Date(date).getDay();
           const daySessions = sessions.filter((s) => s.day_of_week === dow || s.day_of_week === null);
           const weekend = isWeekend(date);
-          // Capped chỉ khi: vai trò là chuyên viên VÀ ngày thường. Cuối tuần luôn tự do.
           const shiftIsCapped = isSlotCapped && !weekend;
 
           return (
@@ -142,9 +136,7 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
               <div className="text-sm font-medium">
                 {WEEKDAY_LABEL[dow]}
                 <div className="text-xs text-neutral-500">{date}</div>
-                {isSlotCapped && weekend && (
-                  <div className="text-xs text-emerald-600 font-normal">Tự do đăng ký</div>
-                )}
+                {isSlotCapped && weekend && <div className="text-xs text-emerald-600 font-normal">Tự do đăng ký</div>}
               </div>
 
               {daySessions.map((s) => {
@@ -152,18 +144,17 @@ export default function RegisterBoard({ week, sessions, capacityStatus, myRegist
                 const cap = capacityMap.get(key);
                 const myReg = myRegMap.get(key);
                 const isFull = shiftIsCapped && cap && cap.slots_remaining <= 0 && !myReg;
-                const busy = isPending && (pendingKey === key || pendingKey === myReg?.id);
 
                 if (isFull) return null;
 
                 return (
                   <button
                     key={s.id}
-                    disabled={busy || deadlinePassed}
+                    disabled={isPending || deadlinePassed}
                     onClick={() => (myReg ? handleCancel(myReg.id) : handleRegister(s.id, date))}
                     className={`w-full text-left text-xs rounded-md border px-2 py-1.5 transition
                       ${myReg ? "bg-neutral-900 text-white border-neutral-900" : "bg-white hover:bg-neutral-50"}
-                      ${busy || deadlinePassed ? "opacity-50 cursor-not-allowed" : ""}`}
+                      ${isPending || deadlinePassed ? "cursor-not-allowed" : ""}`}
                   >
                     <div className="font-medium">{s.name}</div>
                     <div className="opacity-70">

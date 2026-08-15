@@ -65,15 +65,45 @@ export type RoleDayRow = { date: string; roleId: number; roleName: string; minCo
 export async function getReviewData(weekId: string) {
   const supabase = await createAdminAuthClient();
 
-  const { data: weekRow } = await supabase.from("schedule_weeks").select("week_start").eq("id", weekId).single();
+  // TRƯỚC: 5 query này chạy tuần tự (await từng cái) — mỗi cái tốn 1 round-trip
+  // mạng riêng, cộng dồn lại rất chậm. Chúng hoàn toàn độc lập với nhau (không
+  // cái nào cần dữ liệu của cái kia), nên gộp chạy song song bằng Promise.all.
+  const [weekRowRes, employeesRes, registrationsRes, capacityRes, sessionsRes, roleDayRes] = await Promise.all([
+    supabase.from("schedule_weeks").select("week_start").eq("id", weekId).single(),
+    supabase
+      .from("employees")
+      .select("id, role_id, status, roles ( role_name )")
+      .eq("status", "active")
+      .in("role_id", SELF_REGISTER_ROLE_IDS),
+    supabase
+      .from("shift_registrations")
+      .select("id, employee_id, session_id, date, status, session:sessions ( name )")
+      .eq("week_id", weekId)
+      .neq("status", "cancelled"),
+    supabase
+      .from("shift_capacity_status")
+      .select("session_id, date, slot_target, current_count, slots_remaining, session:sessions ( name )")
+      .eq("week_id", weekId),
+    supabase.from("sessions").select("id, name, day_of_week"),
+    supabase
+      .from("role_day_status")
+      .select("date, role_id, min_count, current_count, roles:role_id ( role_name )")
+      .eq("week_id", weekId),
+  ]);
 
-  const { data: employeesData, error: empErr } = await supabase
-    .from("employees")
-    .select("id, role_id, status, roles ( role_name )")
-    .eq("status", "active")
-    .in("role_id", SELF_REGISTER_ROLE_IDS);
-  if (empErr) throw new Error(empErr.message);
+  if (employeesRes.error) throw new Error(employeesRes.error.message);
+  if (registrationsRes.error) throw new Error(registrationsRes.error.message);
+  if (capacityRes.error) throw new Error(capacityRes.error.message);
+  if (roleDayRes.error) throw new Error(roleDayRes.error.message);
 
+  const employeesData = employeesRes.data;
+  const registrations = registrationsRes.data;
+  const capacityRaw = capacityRes.data;
+  const sessionsData = sessionsRes.data;
+  const roleDayRaw = roleDayRes.data;
+  const weekStart = weekRowRes.data?.week_start as string | undefined;
+
+  // profiles PHẢI đợi có employeeIds trước — đây là chỗ duy nhất bắt buộc tuần tự.
   const employeeIds = (employeesData ?? []).map((e: any) => e.id);
   const { data: profilesData, error: profilesErr } = await supabase
     .from("profiles")
@@ -81,13 +111,6 @@ export async function getReviewData(weekId: string) {
     .in("id", employeeIds.length > 0 ? employeeIds : [""]);
   if (profilesErr) throw new Error(profilesErr.message);
   const profileMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
-
-  const { data: registrations, error: regErr } = await supabase
-    .from("shift_registrations")
-    .select("id, employee_id, session_id, date, status, session:sessions ( name )")
-    .eq("week_id", weekId)
-    .neq("status", "cancelled");
-  if (regErr) throw new Error(regErr.message);
 
   const regsByEmployee = new Map<string, any[]>();
   const roleByEmployee = new Map<string, number>();
@@ -119,12 +142,6 @@ export async function getReviewData(weekId: string) {
     };
   });
 
-  const { data: capacityRaw, error: capErr } = await supabase
-    .from("shift_capacity_status")
-    .select("session_id, date, slot_target, current_count, slots_remaining, session:sessions ( name )")
-    .eq("week_id", weekId);
-  if (capErr) throw new Error(capErr.message);
-
   const weekdayTargets: DropTargetShift[] = (capacityRaw ?? [])
     .filter((c: any) => c.slots_remaining > 0)
     .map((c: any) => ({
@@ -136,8 +153,6 @@ export async function getReviewData(weekId: string) {
       slotsRemaining: c.slots_remaining,
     }));
 
-  const { data: sessionsData } = await supabase.from("sessions").select("id, name, day_of_week");
-  const weekStart = weekRow?.week_start as string | undefined;
   const weekendTargets: DropTargetShift[] = [];
   if (weekStart) {
     for (const offset of [5, 6]) {
@@ -154,12 +169,6 @@ export async function getReviewData(weekId: string) {
       }
     }
   }
-
-  const { data: roleDayRaw, error: roleDayErr } = await supabase
-    .from("role_day_status")
-    .select("date, role_id, min_count, current_count, roles:role_id ( role_name )")
-    .eq("week_id", weekId);
-  if (roleDayErr) throw new Error(roleDayErr.message);
 
   const roleDayStatus: RoleDayRow[] = (roleDayRaw ?? []).map((r: any) => ({
     date: r.date,
@@ -185,7 +194,6 @@ export async function assignEmployeeToShift(input: { weekId: string; employeeId:
   const adminId = await requireScheduleManager();
   const supabase = await createAdminAuthClient();
 
-  // CHẶN sửa sau khi tuần đã chốt — đây là lỗi bị bỏ sót trước đó, giờ thêm lại.
   const { data: week, error: weekErr } = await supabase.from("schedule_weeks").select("status").eq("id", input.weekId).single();
   if (weekErr || !week) throw new Error("Không tìm thấy tuần lịch.");
   if (week.status === "confirmed") {
@@ -198,6 +206,7 @@ export async function assignEmployeeToShift(input: { weekId: string; employeeId:
     .eq("employee_id", input.employeeId)
     .eq("session_id", input.sessionId)
     .eq("date", input.date)
+    .neq("status", "cancelled") // dòng đã hủy không tính là "đang có ca này"
     .maybeSingle();
   if (existing) throw new Error("Nhân viên này đã có ca này rồi.");
 
