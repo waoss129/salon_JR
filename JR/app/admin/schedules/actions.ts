@@ -2,6 +2,7 @@
 
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireManage } from "@/lib/supabase/admin-guard";
 
 // role_id 3, 4, 5 trong bảng roles là các vai trò "nhân viên" thực sự
 // được phép xếp lịch làm việc (vd: lễ tân, kỹ thuật viên, quản lý...).
@@ -211,6 +212,10 @@ export async function createSchedules(input: {
   date: string;
   sessionIds: number[];
 }) {
+  // Trước đây hàm này KHÔNG có kiểm tra quyền nào — ai gọi cũng xếp được
+  // lịch, kể cả role chỉ có view (vd: CEO sau khi bị rút quyền manage).
+  await requireManage("schedules");
+
   if (!input.employeeId || !input.date || input.sessionIds.length === 0) {
     throw new Error("Thiếu thông tin nhân viên, ngày hoặc ca làm việc");
   }
@@ -283,7 +288,11 @@ export async function updateScheduleStatus(
   }
 
   const roleId = employee.role_id;
-  const MANAGER_ROLE_IDS = [1, 2, 3];
+  // Khớp PERMISSIONS.schedules.manage trong lib/supabase/permissions.ts:
+  // chỉ Admin (1) và Quản lý (3) sửa được MỌI lịch. CEO (2) không còn nằm
+  // trong danh sách này — CEO giờ chỉ xem, không sửa trạng thái ca của
+  // bất kỳ ai (kể cả chính mình, vì CEO không thuộc SELF_CHECKIN_ROLE_IDS).
+  const MANAGER_ROLE_IDS = [1, 3];
 
   if (!MANAGER_ROLE_IDS.includes(roleId)) {
     if (!SELF_CHECKIN_ROLE_IDS.includes(roleId)) {
@@ -322,6 +331,9 @@ export async function updateScheduleStatus(
  * Xoá 1 lịch làm việc
  */
 export async function deleteSchedule(scheduleId: string) {
+  // Trước đây hàm này KHÔNG có kiểm tra quyền nào — ai gọi cũng xoá được.
+  await requireManage("schedules");
+
   const supabase = await createAdminAuthClient();
   const { error } = await supabase
     .from("schedules")

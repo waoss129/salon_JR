@@ -71,10 +71,15 @@ function allocateDiscountToLines<T extends { subtotal: number }>(
 
 export default function BillDetailModal({
   billId,
+  canManage,
   onClose,
   onUpdated,
 }: {
   billId: string;
+  // Người đang xem có được xác nhận thanh toán hay không — vd: role 2
+  // (CEO) chỉ xem, phải false. Mặc định false để an toàn (fail-closed)
+  // nếu quên truyền.
+  canManage?: boolean;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -382,7 +387,7 @@ export default function BillDetailModal({
             >
               Đóng
             </button>
-            {bill.status === "unpaid" && (
+            {canManage && bill.status === "unpaid" && (
               <button
                 onClick={handleConfirmPayment}
                 disabled={confirming}

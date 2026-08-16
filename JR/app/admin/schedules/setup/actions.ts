@@ -57,7 +57,9 @@ async function requireScheduleManager(): Promise<number> {
   if (!user) throw new Error("Bạn cần đăng nhập lại.");
 
   const { data: employee } = await supabase.from("employees").select("role_id").eq("id", user.id).single();
-  if (!employee || ![1, 2, 3].includes(employee.role_id)) {
+  // Khớp PERMISSIONS.schedules.manage trong lib/supabase/permissions.ts:
+  // chỉ Admin (1), Quản lý (3) — CEO (2) không còn được thiết lập ca.
+  if (!employee || ![1, 3].includes(employee.role_id)) {
     throw new Error("Bạn không có quyền thiết lập lịch làm việc.");
   }
   return employee.role_id;

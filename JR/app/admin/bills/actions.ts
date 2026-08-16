@@ -4,6 +4,7 @@
 // Đây là đường dẫn phổ biến cho Next.js App Router + Supabase SSR.
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireView, requireManage } from "@/lib/supabase/admin-guard";
 
 // ============================================================
 // TYPES
@@ -94,6 +95,10 @@ export type BillDetail = {
 export async function getBills(
   filters: { date?: string; search?: string } = {},
 ): Promise<{ data: BillListItem[]; error: string | null }> {
+  // Trước đây hàm này KHÔNG có kiểm tra quyền — ai gọi cũng xem được toàn
+  // bộ hóa đơn, kể cả role 4 (không có trong PERMISSIONS.bills.view).
+  await requireView("bills");
+
   const supabase = await createAdminAuthClient();
 
   let query = supabase
@@ -177,6 +182,9 @@ export async function getBills(
 export async function getBillableAppointments(
   search?: string,
 ): Promise<{ data: BillableAppointment[]; error: string | null }> {
+  // Chỉ dùng khi TẠO hóa đơn -> yêu cầu quyền manage, không phải view.
+  await requireManage("bills");
+
   const supabase = await createAdminAuthClient();
 
   // Loại các appointment đã có hóa đơn rồi.
@@ -233,7 +241,10 @@ export async function getBillableAppointments(
 }
 
 // Lấy dịch vụ gốc đã đặt của 1 appointment (bảng `details`) để auto-fill dòng dịch vụ đầu tiên.
+// Chỉ dùng trong màn hình TẠO hóa đơn -> yêu cầu quyền manage.
 export async function getAppointmentOriginalService(appointmentId: string) {
+  await requireManage("bills");
+
   const supabase = await createAdminAuthClient();
 
   const { data, error } = await supabase
@@ -262,11 +273,14 @@ export async function getAppointmentOriginalService(appointmentId: string) {
   return { data, error: null };
 }
 
-// Danh sách dịch vụ đang active, dùng cho dropdown "thêm dịch vụ phát sinh".
+// Danh sách dịch vụ đang active, dùng cho dropdown "thêm dịch vụ phát sinh"
+// trong màn hình TẠO hóa đơn -> yêu cầu quyền manage.
 export async function getActiveServices(): Promise<{
   data: ActiveService[];
   error: string | null;
 }> {
+  await requireManage("bills");
+
   const supabase = await createAdminAuthClient();
 
   const { data, error } = await supabase
@@ -286,6 +300,10 @@ export async function getActiveServices(): Promise<{
 export async function createBill(
   payload: CreateBillPayload,
 ): Promise<{ data?: { id: string }; error: string | null }> {
+  // Trước đây hàm TẠO HÓA ĐƠN này không có kiểm tra quyền nào — nghiêm
+  // trọng nhất trong file, vì đây là hành động ghi dữ liệu tài chính.
+  await requireManage("bills");
+
   const supabase = await createAdminAuthClient();
 
   if (!payload.services.length) {
@@ -345,6 +363,8 @@ export async function createBill(
 export async function getBillDetail(
   billId: string,
 ): Promise<{ data: BillDetail | null; error: string | null }> {
+  await requireView("bills");
+
   const supabase = await createAdminAuthClient();
 
   const { data: bill, error } = await supabase
@@ -407,6 +427,9 @@ export async function confirmBillPayment(billId: string): Promise<{
   data?: { id: string; status: BillStatus };
   error: string | null;
 }> {
+  // Xác nhận thanh toán là hành động "sửa" trạng thái tài chính -> quyền manage.
+  await requireManage("bills");
+
   const supabase = await createAdminAuthClient();
 
   const { data, error } = await supabase
@@ -434,6 +457,9 @@ export async function confirmBillPayment(billId: string): Promise<{
 // bảng bills chưa có cột created_by, đã thống nhất với người dùng)
 // ============================================================
 
+// KHÔNG cần guard — chỉ trả về tên của CHÍNH người đang đăng nhập (lấy qua
+// user.id từ session), không nhận tham số nào từ bên ngoài, nên không có
+// rủi ro lộ thông tin người khác.
 export async function getCurrentStaffName(): Promise<string | null> {
   const supabase = await createAdminAuthClient();
 

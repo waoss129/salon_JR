@@ -36,7 +36,14 @@ function formatDateTime(value: string | null) {
   });
 }
 
-export default function BillList() {
+export default function BillList({
+  canManage,
+}: {
+  // Người đang xem có được tạo hóa đơn mới / xác nhận thanh toán hay
+  // không — vd: role 2 (CEO) chỉ xem, phải false. Mặc định false để an
+  // toàn (fail-closed) nếu quên truyền.
+  canManage?: boolean;
+}) {
   const [bills, setBills] = useState<BillListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState("");
@@ -105,12 +112,14 @@ export default function BillList() {
           )}
         </div>
 
-        <button
-          onClick={() => setShowFormModal(true)}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          + Thêm mới
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setShowFormModal(true)}
+            className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          >
+            + Thêm mới
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200">
@@ -193,7 +202,7 @@ export default function BillList() {
         </table>
       </div>
 
-      {showFormModal && (
+      {canManage && showFormModal && (
         <BillFormModal
           onClose={() => setShowFormModal(false)}
           onCreated={() => {
@@ -206,6 +215,7 @@ export default function BillList() {
       {selectedBillId && (
         <BillDetailModal
           billId={selectedBillId}
+          canManage={canManage}
           onClose={() => setSelectedBillId(null)}
           onUpdated={fetchBills}
         />

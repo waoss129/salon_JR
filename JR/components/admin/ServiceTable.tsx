@@ -18,9 +18,14 @@ type ServiceRow = {
 export default function ServiceTable({
   services,
   typeId,
+  canManage,
 }: {
   services: ServiceRow[];
   typeId: number;
+  // Người đang xem có được thêm/sửa/xóa/bật-tắt dịch vụ hay không — vd:
+  // role 2 (CEO) chỉ xem, phải false. Mặc định false để an toàn
+  // (fail-closed) nếu quên truyền.
+  canManage?: boolean;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -64,9 +69,11 @@ export default function ServiceTable({
               <th className="px-4 py-3 text-left font-medium text-gray-500">
                 Trạng thái
               </th>
-              <th className="px-4 py-3 text-center font-medium text-gray-500">
-                Hành động
-              </th>
+              {canManage && (
+                <th className="px-4 py-3 text-center font-medium text-gray-500">
+                  Hành động
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -83,37 +90,58 @@ export default function ServiceTable({
                     {service.duration ? `${service.duration} phút` : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() =>
-                        handleToggleStatus(service.id, service.status)
-                      }
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                        service.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {service.status === "active"
-                        ? "Đang kinh doanh"
-                        : "Ngừng kinh doanh"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <ServiceModal typeId={typeId} service={service} />
+                    {canManage ? (
                       <button
-                        onClick={() => handleDelete(service.id, service.name)}
-                        className="text-sm font-medium text-red-500 hover:underline"
+                        onClick={() =>
+                          handleToggleStatus(service.id, service.status)
+                        }
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          service.status === "active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
                       >
-                        Xóa
+                        {service.status === "active"
+                          ? "Đang kinh doanh"
+                          : "Ngừng kinh doanh"}
                       </button>
-                    </div>
+                    ) : (
+                      // Không có quyền quản lý (vd: CEO) -> chỉ hiện nhãn
+                      // tĩnh, không cho bật/tắt.
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          service.status === "active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {service.status === "active"
+                          ? "Đang kinh doanh"
+                          : "Ngừng kinh doanh"}
+                      </span>
+                    )}
                   </td>
+                  {canManage && (
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <ServiceModal typeId={typeId} service={service} />
+                        <button
+                          onClick={() => handleDelete(service.id, service.name)}
+                          className="text-sm font-medium text-red-500 hover:underline"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                <td
+                  colSpan={canManage ? 5 : 4}
+                  className="px-4 py-8 text-center text-gray-400"
+                >
                   Không tìm thấy dịch vụ nào.
                 </td>
               </tr>

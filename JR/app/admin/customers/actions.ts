@@ -6,9 +6,12 @@ import {
 import { revalidatePath } from "next/cache";
 import { ROLE } from "@/lib/supabase/permissions";
 
+// Khớp PERMISSIONS.customers trong lib/supabase/permissions.ts:
+// { view: [1, 3, 5], manage: [1, 3, 5] } — CEO (role 2) KHÔNG quản lý
+// khách hàng (đã xác nhận với chủ dự án). Trước đây mảng này có thêm
+// ROLE.CEO, gây lệch với permissions.ts — đã bỏ ra cho khớp.
 const CUSTOMER_MANAGER_ROLE_IDS: number[] = [
   ROLE.ADMIN,
-  ROLE.CEO,
   ROLE.MANAGER,
   ROLE.RECEPTIONIST,
 ];

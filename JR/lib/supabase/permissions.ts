@@ -35,7 +35,10 @@ export const PERMISSIONS: Record<
   customers: { view: [1, 3, 5], manage: [1, 3, 5] },
 
   // Role 2 (CEO) chỉ xem trang dịch vụ, không thêm/sửa/xoá.
-  services: { view: [1, 2, 3], manage: [1, 3] },
+  // Role 4 (chuyên viên) và role 5 (lễ tân) cũng được xem để biết tên/giá/
+  // thời lượng dịch vụ khi tư vấn hoặc thực hiện cho khách — không thêm/
+  // sửa/xoá được (manage vẫn chỉ 1, 3).
+  services: { view: [1, 2, 3, 4, 5], manage: [1, 3] },
 
   // LƯU Ý: view [1,2,3,4,5] ở đây chỉ là quyền VÀO TRANG lịch, không có
   // nghĩa là thấy TOÀN BỘ lịch của mọi nhân viên. Có 2 role bị giới hạn
@@ -43,11 +46,14 @@ export const PERMISSIONS: Record<
   // xử lý được ở file này — xem canViewOwnScheduleOnly() bên dưới:
   //   - Role 4 (beautician): chỉ xem lịch của CHÍNH MÌNH.
   //   - Role 5 (lễ tân): chỉ xem lịch của CHÍNH MÌNH.
-  // Role 1, 2, 3 xem được toàn bộ lịch của tất cả nhân viên.
+  // Role 1 (Admin) và role 3 (Quản lý) xem TOÀN BỘ lịch và được xếp/sửa
+  // ca (manage). Role 2 (CEO) chỉ xem toàn bộ lịch, không xếp/sửa ca —
+  // đổi từ "được quản lý" sang "chỉ xem" để nhất quán với các trang khác
+  // (staff, services, promotions: CEO đều chỉ xem, không vận hành).
   // Role 4 VÀ Role 5 đều được tự check-in/hoàn thành ca của CHÍNH MÌNH,
   // không có quyền "sửa" nào khác (không sửa lịch người khác, không xoá,
   // không đổi sang trạng thái vắng mặt/huỷ) — xem canCheckInOwnSchedule().
-  schedules: { view: [1, 2, 3, 4, 5], manage: [1, 2, 3] },
+  schedules: { view: [1, 2, 3, 4, 5], manage: [1, 3] },
 
   // Role 4 chỉ xem lịch hẹn, không sửa.
   appointments: { view: [1, 2, 3, 4, 5], manage: [1, 3] },
@@ -123,4 +129,28 @@ export function canCheckInOwnSchedule(roleId: number | null): boolean {
 // updateStaff() (đã thêm kiểm tra tương ứng trong app/admin/staff/actions.ts).
 export function canChangeEmail(roleId: number | null): boolean {
   return roleId === ROLE.ADMIN;
+}
+
+// Vai trò được phép cập nhật trạng thái lịch hẹn (xác nhận / hoàn thành /
+// huỷ / khách không đến) — khớp với updateAppointmentStatus() trong
+// app/admin/appointments/actions.ts:
+//   - Role 1 (Admin), 3 (Manager): sửa được MỌI lịch hẹn.
+//   - Role 4 (Beautician): CHỈ được sửa lịch hẹn đang gán cho CHÍNH MÌNH —
+//     đây là quyền theo TỪNG DÒNG DỮ LIỆU, giống canCheckInOwnSchedule().
+//     Hàm này chỉ xác nhận role có ĐỦ TƯ CÁCH để thử, KHÔNG tự đảm bảo
+//     đúng-là-lịch-hẹn-của-mình. Việc đó được đảm bảo bởi:
+//       1. getAppointments({ onlyEmployeeId }) — trang lịch hẹn của role 4
+//          chỉ tải về đúng lịch hẹn gán cho mình, không tải toàn bộ.
+//       2. updateAppointmentStatus() — so khớp schedule.employee_id với
+//          auth.uid() trước khi cho phép update.
+//   - Role 2 (CEO), 5 (Receptionist): KHÔNG được gọi hàm cập nhật này
+//     (role 2 chỉ xem lịch hẹn, role 5 cũng vậy — xem PERMISSIONS.
+//     appointments.manage: [1, 3] ở trên, role 4 là ngoại lệ theo dòng).
+export function canUpdateAppointmentStatus(roleId: number | null): boolean {
+  if (!roleId) return false;
+  return (
+    roleId === ROLE.ADMIN ||
+    roleId === ROLE.MANAGER ||
+    roleId === ROLE.BEAUTICIAN
+  );
 }

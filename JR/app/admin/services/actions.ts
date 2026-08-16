@@ -1,9 +1,15 @@
 "use server"; // Dòng này bắt buộc để Next.js hiểu đây là Server Action
 import { createAdminAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireManage } from "@/lib/supabase/admin-guard";
 
 // Hàm Xóa
 export async function deleteService(id: number) {
+  // Trước đây hàm này KHÔNG có kiểm tra quyền nào — ai gọi cũng xoá được,
+  // kể cả role chỉ có view (vd: CEO). Thêm requireManage để khớp với
+  // PERMISSIONS.services.manage trong lib/supabase/permissions.ts.
+  await requireManage("services");
+
   const supabase = await createAdminAuthClient();
   const { error } = await supabase.from("services").delete().eq("id", id);
 
@@ -15,6 +21,8 @@ export async function deleteService(id: number) {
 
 // Hàm Thêm (bạn sẽ dùng nó cho Form trong trang Add)
 export async function addService(formData: FormData) {
+  await requireManage("services");
+
   const supabase = await createAdminAuthClient();
   await supabase.from("services").insert({
     name: formData.get("name"),
@@ -31,6 +39,8 @@ export async function addService(formData: FormData) {
 }
 
 export async function updateService(id: number, formData: FormData) {
+  await requireManage("services");
+
   const supabase = await createAdminAuthClient();
   await supabase
     .from("services")
@@ -51,6 +61,9 @@ export async function toggleServiceStatus(
   id: number,
   currentStatus: string | null,
 ) {
+  // Bật/tắt cũng là hành động "sửa" -> cần quyền manage, không phải view.
+  await requireManage("services");
+
   const supabase = await createAdminAuthClient();
   const nextStatus = currentStatus === "active" ? "inactive" : "active";
   await supabase.from("services").update({ status: nextStatus }).eq("id", id);
